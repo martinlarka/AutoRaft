@@ -75,9 +75,9 @@ public class AutoRaft extends Activity {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress,
                                           boolean fromUser) {
-                String tempStr = Integer.toString(progress) + "\n";
-                headingSeekBarValue.setText(tempStr);
-                mSerialService.write(tempStr.getBytes());
+
+                headingSeekBarValue.setText(progress + "");
+                mSerialService.write(progress);
             }
         });
 
@@ -127,6 +127,11 @@ public class AutoRaft extends Activity {
                 return true;
         }
         return false;
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
     }
 
     public int getConnectionState() {
