@@ -9,6 +9,7 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.os.Messenger;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.SeekBar;
@@ -32,6 +33,10 @@ public class AutoRaft extends Activity {
     public static final int MESSAGE_DEVICE_NAME = 4;
     public static final int MESSAGE_TOAST = 5;
 
+    // Message types sent from AutoPilotService Handler
+    public static final int MESSAGE_STATE = 1;
+    public static final int MESSAGE_HEADING = 2;
+
     private static TextView mTitle;
     private static TextView headingSeekBarValue;
     private static SeekBar headingSeekBar;
@@ -48,9 +53,17 @@ public class AutoRaft extends Activity {
     private static BluetoothSerialService mSerialService = null;
 
     private MenuItem mMenuItemConnect;
+    private MenuItem mMenuItemAutoPilot;
 
     // Google Map
     private GoogleMap googleMap;
+    private boolean autoPilotOn = false;
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        stopService(new Intent(getBaseContext(), AutoPilotService.class));
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -98,7 +111,11 @@ public class AutoRaft extends Activity {
             e.printStackTrace();
         }
 
-
+        // Start auto pilot service for gps readings
+        Intent intent = new Intent(this, AutoPilotService.class);
+        Messenger messenger = new Messenger(mAutoPilotHandler);
+        intent.putExtra("MESSENGER", messenger);
+        startService(intent);
     }
 
     @Override
@@ -106,6 +123,7 @@ public class AutoRaft extends Activity {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.auto_raft, menu);
         mMenuItemConnect = menu.getItem(0);
+        mMenuItemAutoPilot = menu.getItem(1);
         return true;
     }
     @Override
@@ -123,7 +141,10 @@ public class AutoRaft extends Activity {
                     mSerialService.start();
                 }
                 return true;
-            case R.id.action_settings:
+            case R.id.auto_pilot:
+                // If Auto pilot is on
+                if (autoPilotOn) {
+                }
                 return true;
         }
         return false;
@@ -190,6 +211,26 @@ public class AutoRaft extends Activity {
         }
     };
 
+    private final Handler mAutoPilotHandler = new Handler() {
+        @Override
+        public void handleMessage(Message msg) {
+            switch (msg.what) {
+                case MESSAGE_STATE:
+                    if (msg.getData().getBoolean("AUTO_PILOT_STATE")) {
+                        mMenuItemAutoPilot.setTitle(R.string.stop_auto_pilot);
+                        autoPilotOn = true;
+                    } else {
+                        mMenuItemAutoPilot.setTitle(R.string.start_auto_pilot);
+                        autoPilotOn = false;
+                    }
+                    break;
+                case MESSAGE_HEADING:
+                    mSerialService.write(msg.getData().getInt("AUTO_PILOT_HEADING"));
+                    break;
+            }
+        }
+    };
+
     public void finishDialogNoBluetooth() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setMessage(R.string.alert_dialog_no_bt)
@@ -244,6 +285,4 @@ public class AutoRaft extends Activity {
             }
         }
     }
-
-
 }

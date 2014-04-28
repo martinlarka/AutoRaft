@@ -32,7 +32,7 @@ void setup()
   // 115200 can be too fast at times for NewSoftSerial to relay the data reliably
   bluetooth.begin(9600);  // Start bluetooth serial at 9600
   
-    myservo.attach(9);  // attaches the servo on pin 9 to the servo object 
+  myservo.attach(9);  // attaches the servo on pin 9 to the servo object 
 }
 
 void loop()

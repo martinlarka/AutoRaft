@@ -76,7 +76,7 @@ public class BluetoothSerialService {
         mHandler = handler;
         mContext = context;
         mAllowInsecureConnections = true;
-        heading = headingSeekBar; // TODO Send Autoraft instead??
+        heading = headingSeekBar;
     }
 
     /**
