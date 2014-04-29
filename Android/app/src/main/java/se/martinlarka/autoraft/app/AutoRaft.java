@@ -10,6 +10,7 @@ import android.bluetooth.BluetoothDevice;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Messenger;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.SeekBar;
@@ -214,6 +215,7 @@ public class AutoRaft extends Activity {
     private final Handler mAutoPilotHandler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
+            Log.d("HANDLE MESSAGE", "ASDF");
             switch (msg.what) {
                 case MESSAGE_STATE:
                     if (msg.getData().getBoolean("AUTO_PILOT_STATE")) {
@@ -225,7 +227,9 @@ public class AutoRaft extends Activity {
                     }
                     break;
                 case MESSAGE_HEADING:
-                    mSerialService.write(msg.getData().getInt("AUTO_PILOT_HEADING"));
+                    int temp = msg.getData().getInt("AUTO_PILOT_HEADING");
+                    mSerialService.write(temp);
+                    headingSeekBarValue.setText("" +temp);
                     break;
             }
         }
