@@ -40,4 +40,7 @@
     <string name="start_auto_pilot">Start auto pilot</string>
     <string name="stop_auto_pilot">Stop auto pilot</string>
 
+    <!-- Debug strings -->
+    <string name="play_services_available">Google Play services is available</string>
+
 </resources>

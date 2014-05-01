@@ -1,5 +1,6 @@
 package se.martinlarka.autoraft.app;
 
+import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -18,8 +19,11 @@ import android.widget.SeekBar.OnSeekBarChangeListener;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.gms.maps.CameraUpdate;
+import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapFragment;
+import com.google.android.gms.maps.model.LatLng;
 
 public class AutoRaft extends Activity {
 
@@ -36,7 +40,11 @@ public class AutoRaft extends Activity {
 
     // Message types sent from AutoPilotService Handler
     public static final int MESSAGE_STATE = 1;
-    public static final int MESSAGE_HEADING = 2;
+    public static final int MESSAGE_LOCATION_CHANGED = 2;
+    public static final String BEARING = "autoraft_bearing";
+    public static final String LONG = "autoraft_longtitude";
+    public static final String LAT = "autoraft_latitude";
+    public static final String SPEED = "autoraft_speed";
 
     private static TextView mTitle;
     private static TextView headingSeekBarValue;
@@ -215,7 +223,6 @@ public class AutoRaft extends Activity {
     private final Handler mAutoPilotHandler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
-            Log.d("HANDLE MESSAGE", "ASDF");
             switch (msg.what) {
                 case MESSAGE_STATE:
                     if (msg.getData().getBoolean("AUTO_PILOT_STATE")) {
@@ -226,10 +233,20 @@ public class AutoRaft extends Activity {
                         autoPilotOn = false;
                     }
                     break;
-                case MESSAGE_HEADING:
-                    int temp = msg.getData().getInt("AUTO_PILOT_HEADING");
-                    mSerialService.write(temp);
-                    headingSeekBarValue.setText("" +temp);
+                case MESSAGE_LOCATION_CHANGED:
+                    float raftBearing = msg.getData().getFloat(AutoRaft.BEARING);
+                    float raftSpeed = msg.getData().getFloat(AutoRaft.SPEED);
+                    double raftLong = msg.getData().getDouble(AutoRaft.LONG);
+                    double raftLat = msg.getData().getDouble(AutoRaft.LAT);
+
+                    CameraUpdate center = CameraUpdateFactory.newLatLng(new LatLng(raftLat, raftLong));
+                    CameraUpdate zoom = CameraUpdateFactory.zoomTo(15);
+
+                    googleMap.moveCamera(center);
+                    googleMap.animateCamera(zoom);
+
+                    headingSeekBarValue.setText("" + raftSpeed);
+
                     break;
             }
         }
