@@ -99,11 +99,8 @@ public class AutoPilotService extends Service implements
         } catch (RemoteException e) {
             Log.w(getClass().getName(), "Exception sending message");
         }
-
         // Calculate new direction
 
-
-        Log.d(LocationUtils.APPTAG, "Location changed!!");
     }
 
     private void setupLocationClient() {

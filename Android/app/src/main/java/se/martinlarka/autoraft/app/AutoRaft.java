@@ -1,6 +1,7 @@
 package se.martinlarka.autoraft.app;
 
 import android.location.Location;
+import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -67,6 +68,8 @@ public class AutoRaft extends Activity {
 
     // Google Map
     private GoogleMap googleMap;
+    private LatLng raftPos = null;
+    private boolean focusOnPosition = true;
     private boolean autoPilotOn = false;
 
     @Override
@@ -240,19 +243,22 @@ public class AutoRaft extends Activity {
                     double raftLong = msg.getData().getDouble(AutoRaft.LONG);
                     double raftLat = msg.getData().getDouble(AutoRaft.LAT);
 
-                    double offset = 0.002;
+                    double offset = 0.001;
 
                     raftLong += offset * Math.sin(Math.toRadians(raftBearing));
                     raftLat += offset * Math.cos(Math.toRadians(raftBearing));
 
-                    CameraPosition cameraPosition = new CameraPosition.Builder()
-                            .target(new LatLng(raftLat, raftLong))
-                            .zoom(16)
-                            .bearing(raftBearing)
-                            .tilt(80)
-                            .build();
+                    raftPos = new LatLng(raftLat, raftLong);
 
-                    googleMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
+                    if (focusOnPosition) {
+                        CameraPosition cameraPosition = new CameraPosition.Builder()
+                                .target(raftPos)
+                                .zoom(18)
+                                .bearing(raftBearing)
+                                .tilt(80)
+                                .build();
+                        googleMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
+                    }
                     headingSeekBarValue.setText("" + raftSpeed);
 
                     break;
@@ -311,6 +317,41 @@ public class AutoRaft extends Activity {
                 Toast.makeText(getApplicationContext(),
                         "Sorry! unable to create maps", Toast.LENGTH_SHORT)
                         .show();
+            } else {
+                googleMap.setMyLocationEnabled(true);
+                googleMap.setOnCameraChangeListener(new GoogleMap.OnCameraChangeListener() {
+                    @Override
+                    public void onCameraChange(CameraPosition cameraPosition) {
+                        if ( raftPos != null) {
+                            Location raftLocation = new Location(LocationManager.PASSIVE_PROVIDER);
+                            raftLocation.setLongitude(raftPos.longitude);
+                            raftLocation.setLatitude(raftPos.latitude);
+
+                            Location cameraLocation = new Location(LocationManager.PASSIVE_PROVIDER);
+                            cameraLocation.setLatitude(cameraPosition.target.latitude);
+                            cameraLocation.setLongitude(cameraPosition.target.longitude);
+
+                            focusOnPosition  = cameraLocation.distanceTo(raftLocation) < 50;
+                            Log.d("TEST", String.format("CAMERA CHANGED Distance: %f", cameraLocation.distanceTo(raftLocation)));
+                        }
+
+
+
+
+                    }
+                });
+                googleMap.setOnMapLongClickListener(new GoogleMap.OnMapLongClickListener() {
+                    @Override
+                    public void onMapLongClick(LatLng latLng) {
+                        Log.d("TEST", "Long click");
+                    }
+                });
+                googleMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
+                    @Override
+                    public void onMapClick(LatLng latLng) {
+                        Log.d("TEST", "click");
+                    }
+                });
             }
         }
     }
