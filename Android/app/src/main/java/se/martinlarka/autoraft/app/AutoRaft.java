@@ -23,6 +23,7 @@ import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapFragment;
+import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 
 public class AutoRaft extends Activity {
@@ -239,12 +240,19 @@ public class AutoRaft extends Activity {
                     double raftLong = msg.getData().getDouble(AutoRaft.LONG);
                     double raftLat = msg.getData().getDouble(AutoRaft.LAT);
 
-                    CameraUpdate center = CameraUpdateFactory.newLatLng(new LatLng(raftLat, raftLong));
-                    CameraUpdate zoom = CameraUpdateFactory.zoomTo(15);
+                    double offset = 0.002;
 
-                    googleMap.moveCamera(center);
-                    googleMap.animateCamera(zoom);
+                    raftLong += offset * Math.sin(Math.toRadians(raftBearing));
+                    raftLat += offset * Math.cos(Math.toRadians(raftBearing));
 
+                    CameraPosition cameraPosition = new CameraPosition.Builder()
+                            .target(new LatLng(raftLat, raftLong))
+                            .zoom(16)
+                            .bearing(raftBearing)
+                            .tilt(80)
+                            .build();
+
+                    googleMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
                     headingSeekBarValue.setText("" + raftSpeed);
 
                     break;
