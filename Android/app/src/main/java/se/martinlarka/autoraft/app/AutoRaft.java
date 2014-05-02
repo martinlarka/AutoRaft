@@ -69,8 +69,14 @@ public class AutoRaft extends Activity {
     // Google Map
     private GoogleMap googleMap;
     private LatLng raftPos = null;
+    private float raftBearing;
+    private float raftSpeed;
+    private double offsetPosLong;
+    private double offsetPosLat;
     private boolean focusOnPosition = true;
     private boolean autoPilotOn = false;
+
+    private static final double OFFSET = 0.001;
 
     @Override
     protected void onDestroy() {
@@ -238,26 +244,18 @@ public class AutoRaft extends Activity {
                     }
                     break;
                 case MESSAGE_LOCATION_CHANGED:
-                    float raftBearing = msg.getData().getFloat(AutoRaft.BEARING);
-                    float raftSpeed = msg.getData().getFloat(AutoRaft.SPEED);
-                    double raftLong = msg.getData().getDouble(AutoRaft.LONG);
-                    double raftLat = msg.getData().getDouble(AutoRaft.LAT);
+                    raftBearing = msg.getData().getFloat(AutoRaft.BEARING);
+                    raftSpeed = msg.getData().getFloat(AutoRaft.SPEED);
+                    offsetPosLong = msg.getData().getDouble(AutoRaft.LONG);
+                    offsetPosLat = msg.getData().getDouble(AutoRaft.LAT);
+                    raftPos = new LatLng(offsetPosLat, offsetPosLong);
 
-                    double offset = 0.001;
+                    offsetPosLong += OFFSET * Math.sin(Math.toRadians(raftBearing));
+                    offsetPosLat += OFFSET * Math.cos(Math.toRadians(raftBearing));
 
-                    raftLong += offset * Math.sin(Math.toRadians(raftBearing));
-                    raftLat += offset * Math.cos(Math.toRadians(raftBearing));
-
-                    raftPos = new LatLng(raftLat, raftLong);
 
                     if (focusOnPosition) {
-                        CameraPosition cameraPosition = new CameraPosition.Builder()
-                                .target(raftPos)
-                                .zoom(18)
-                                .bearing(raftBearing)
-                                .tilt(80)
-                                .build();
-                        googleMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
+                        animateNavMode(raftBearing, offsetPosLong, offsetPosLat);
                     }
                     headingSeekBarValue.setText("" + raftSpeed);
 
@@ -265,6 +263,16 @@ public class AutoRaft extends Activity {
             }
         }
     };
+
+    private void animateNavMode(float raftBearing, double offsetPosLong, double offsetPosLat) {
+        CameraPosition cameraPosition = new CameraPosition.Builder()
+                .target(new LatLng(offsetPosLat, offsetPosLong))
+                .zoom(18)
+                .bearing(raftBearing)
+                .tilt(80)
+                .build();
+        googleMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
+    }
 
     public void finishDialogNoBluetooth() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -324,12 +332,12 @@ public class AutoRaft extends Activity {
                     public void onCameraChange(CameraPosition cameraPosition) {
                         if ( raftPos != null) {
                             Location raftLocation = new Location(LocationManager.PASSIVE_PROVIDER);
-                            raftLocation.setLongitude(raftPos.longitude);
                             raftLocation.setLatitude(raftPos.latitude);
+                            raftLocation.setLongitude(raftPos.longitude);
 
                             Location cameraLocation = new Location(LocationManager.PASSIVE_PROVIDER);
-                            cameraLocation.setLatitude(cameraPosition.target.latitude);
-                            cameraLocation.setLongitude(cameraPosition.target.longitude);
+                            cameraLocation.setLatitude(cameraPosition.target.latitude - OFFSET * Math.cos(Math.toRadians(raftBearing)));
+                            cameraLocation.setLongitude(cameraPosition.target.longitude - OFFSET * Math.sin(Math.toRadians(raftBearing)));
 
                             focusOnPosition  = cameraLocation.distanceTo(raftLocation) < 50;
                             Log.d("TEST", String.format("CAMERA CHANGED Distance: %f", cameraLocation.distanceTo(raftLocation)));
@@ -350,6 +358,13 @@ public class AutoRaft extends Activity {
                     @Override
                     public void onMapClick(LatLng latLng) {
                         Log.d("TEST", "click");
+                    }
+                });
+                googleMap.setOnMyLocationButtonClickListener(new GoogleMap.OnMyLocationButtonClickListener() {
+                    @Override
+                    public boolean onMyLocationButtonClick() {
+                        animateNavMode(raftBearing, offsetPosLong, offsetPosLat);
+                        return true;
                     }
                 });
             }
