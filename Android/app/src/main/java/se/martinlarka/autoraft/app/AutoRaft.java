@@ -327,6 +327,7 @@ public class AutoRaft extends Activity {
                         .show();
             } else {
                 googleMap.setMyLocationEnabled(true);
+                googleMap.setBuildingsEnabled(false);
                 googleMap.setOnCameraChangeListener(new GoogleMap.OnCameraChangeListener() {
                     @Override
                     public void onCameraChange(CameraPosition cameraPosition) {
@@ -340,12 +341,7 @@ public class AutoRaft extends Activity {
                             cameraLocation.setLongitude(cameraPosition.target.longitude - OFFSET * Math.sin(Math.toRadians(raftBearing)));
 
                             focusOnPosition  = cameraLocation.distanceTo(raftLocation) < 50;
-                            Log.d("TEST", String.format("CAMERA CHANGED Distance: %f", cameraLocation.distanceTo(raftLocation)));
                         }
-
-
-
-
                     }
                 });
                 googleMap.setOnMapLongClickListener(new GoogleMap.OnMapLongClickListener() {
