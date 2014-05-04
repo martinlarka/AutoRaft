@@ -1,5 +1,6 @@
 package se.martinlarka.autoraft.app;
 
+import android.graphics.Color;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.Bundle;
@@ -26,6 +27,10 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapFragment;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.Polyline;
+import com.google.android.gms.maps.model.PolylineOptions;
 
 public class AutoRaft extends Activity {
 
@@ -47,6 +52,12 @@ public class AutoRaft extends Activity {
     public static final String LONG = "autoraft_longtitude";
     public static final String LAT = "autoraft_latitude";
     public static final String SPEED = "autoraft_speed";
+    public static final String BEARING_TO_DEST = "bearing_to_dest";
+    public static final String DEST_LAT_ARRAY = "dest_lat_array";
+    public static final String DEST_LNG_ARRAY = "dest_lng_array";
+    public static final String CURRENT_DEST = "CURRENT_DEST";
+    public static final String HEADING_LONG = "headingLong";
+    public static final String HEADING_LAT = "headingLat";
 
     private static TextView mTitle;
     private static TextView headingSeekBarValue;
@@ -77,6 +88,12 @@ public class AutoRaft extends Activity {
     private boolean autoPilotOn = false;
 
     private static final double OFFSET = 0.001;
+
+    // FIXME TEMP
+    Marker headingMarker = null;
+    Marker destMarker = null;
+    Polyline headingLine = null;
+    Polyline destLine = null;
 
     @Override
     protected void onDestroy() {
@@ -249,15 +266,30 @@ public class AutoRaft extends Activity {
                     offsetPosLong = msg.getData().getDouble(AutoRaft.LONG);
                     offsetPosLat = msg.getData().getDouble(AutoRaft.LAT);
                     raftPos = new LatLng(offsetPosLat, offsetPosLong);
+                    double bearingToDest = msg.getData().getFloat(AutoRaft.BEARING_TO_DEST);
+
 
                     offsetPosLong += OFFSET * Math.sin(Math.toRadians(raftBearing));
                     offsetPosLat += OFFSET * Math.cos(Math.toRadians(raftBearing));
 
+                    if (focusOnPosition) animateNavMode(raftBearing, offsetPosLong, offsetPosLat);
 
-                    if (focusOnPosition) {
-                        animateNavMode(raftBearing, offsetPosLong, offsetPosLat);
-                    }
-                    headingSeekBarValue.setText("" + raftSpeed);
+                    headingSeekBarValue.setText("AngleToDest:" + bearingToDest+ "RaftBearing: "+raftBearing);
+
+                   // Add heading marker
+                    double headingLat = msg.getData().getDouble(AutoRaft.HEADING_LAT);
+                    double headingLong = msg.getData().getDouble(AutoRaft.HEADING_LONG);
+                    if (headingMarker != null) headingMarker.remove();
+                    headingMarker = googleMap.addMarker(new MarkerOptions().position(new LatLng(headingLat,headingLong)).title("Heading"));
+                    headingMarker.setRotation(180);
+
+                    // Draw lines between raft - heading  - dest
+                    if (headingLine != null) headingLine.remove();
+
+                    headingLine = googleMap.addPolyline(new PolylineOptions()
+                            .add(new LatLng(raftPos.latitude, raftPos.longitude), new LatLng(headingLat, headingLong))
+                            .width(5)
+                            .color(Color.GREEN));
 
                     break;
             }
@@ -326,7 +358,7 @@ public class AutoRaft extends Activity {
                         "Sorry! unable to create maps", Toast.LENGTH_SHORT)
                         .show();
             } else {
-                googleMap.setMyLocationEnabled(true);
+                googleMap.setMyLocationEnabled(true); // TODO Change to custom raft icon
                 googleMap.setBuildingsEnabled(false);
                 googleMap.setOnCameraChangeListener(new GoogleMap.OnCameraChangeListener() {
                     @Override
@@ -344,16 +376,35 @@ public class AutoRaft extends Activity {
                         }
                     }
                 });
+
                 googleMap.setOnMapLongClickListener(new GoogleMap.OnMapLongClickListener() {
                     @Override
                     public void onMapLongClick(LatLng latLng) {
-                        Log.d("TEST", "Long click");
-                    }
-                });
-                googleMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
-                    @Override
-                    public void onMapClick(LatLng latLng) {
-                        Log.d("TEST", "click");
+                        if (destMarker != null) destMarker.remove();
+                        destMarker = googleMap.addMarker(new MarkerOptions().position(latLng).title("TEST"));
+
+                        // FIXME implement method to extract double arrays from marker array?
+                        double tempLat;
+                        double tempLng;
+
+                        tempLat = latLng.latitude;
+                        tempLng = latLng.longitude;
+
+                        if (destLine != null) destLine.remove();
+
+                        destLine = googleMap.addPolyline(new PolylineOptions()
+                                .add(new LatLng(raftPos.latitude, raftPos.longitude), latLng)
+                                .width(5)
+                                .color(Color.BLUE));
+
+
+
+                        // Start auto pilot service for gps readings
+                        Intent intent = new Intent(getBaseContext(), AutoPilotService.class);
+                        intent.putExtra(AutoRaft.DEST_LAT_ARRAY, tempLat);
+                        intent.putExtra(AutoRaft.DEST_LNG_ARRAY, tempLng);
+                        intent.putExtra(AutoRaft.CURRENT_DEST, 0);
+                        startService(intent);
                     }
                 });
                 googleMap.setOnMyLocationButtonClickListener(new GoogleMap.OnMyLocationButtonClickListener() {

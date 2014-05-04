@@ -4,7 +4,9 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentSender;
+import android.hardware.GeomagneticField;
 import android.location.Location;
+import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -43,6 +45,10 @@ public class AutoPilotService extends Service implements
     * method handleRequestSuccess of LocationUpdateReceiver.
     */
     boolean mUpdatesRequested = false;
+    private Location raftLocation;
+    private double destLat;
+    private double destLng;
+    private int currentDest = 0;
 
     public AutoPilotService() {
     }
@@ -50,15 +56,25 @@ public class AutoPilotService extends Service implements
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Bundle extras = intent.getExtras();
-        if (extras != null) {
-            mMessenger = (Messenger) extras.get("MESSENGER");
+        if (startId == 1) {
+            if (extras != null) {
+                mMessenger = (Messenger) extras.get("MESSENGER");
+            } else {
+                mMessenger = null;
+            }
+            destLat = 0;
+            destLng = 0;
+            setupLocationClient();
+            mLocationClient.connect();
+            Toast.makeText(this, R.string.auto_pilot_started, Toast.LENGTH_LONG).show();
         } else {
-            mMessenger = null;
+                if (extras != null) {
+                    destLat = extras.getDouble(AutoRaft.DEST_LAT_ARRAY);
+                    destLng = extras.getDouble(AutoRaft.DEST_LNG_ARRAY);
+                    currentDest = extras.getInt(AutoRaft.CURRENT_DEST);
+                }
         }
-        setupLocationClient();
-        mLocationClient.connect();
 
-        Toast.makeText(this, R.string.auto_pilot_started, Toast.LENGTH_LONG).show();
         return Service.START_STICKY;
     }
 
@@ -86,13 +102,29 @@ public class AutoPilotService extends Service implements
     @Override
     public void onLocationChanged(Location location) {
 
+        raftLocation = location;
+
+        Location destLocation = new Location(LocationManager.PASSIVE_PROVIDER);
+        destLocation.setLatitude(destLat);
+        destLocation.setLongitude(destLng);
+
+        Location headingLocation = new Location(LocationManager.PASSIVE_PROVIDER);
+        headingLocation.setLatitude(raftLocation.getLatitude() + 0.001 * Math.cos(Math.toRadians(raftLocation.getBearing())));
+        headingLocation.setLongitude(raftLocation.getLongitude() + 0.001 * Math.sin(Math.toRadians(raftLocation.getBearing())));
+
+
         // Send long, lat heading m.m to activity.
         Message msg = Message.obtain(null, AutoRaft.MESSAGE_LOCATION_CHANGED);
         Bundle bundle = new Bundle();
+        bundle.putFloat(AutoRaft.BEARING_TO_DEST, angleTo(destLocation, headingLocation));
         bundle.putFloat(AutoRaft.BEARING, location.getBearing());
         bundle.putDouble(AutoRaft.LONG, location.getLongitude());
         bundle.putDouble(AutoRaft.LAT, location.getLatitude());
         bundle.putFloat(AutoRaft.SPEED, location.getSpeed());
+
+        bundle.putDouble(AutoRaft.HEADING_LONG, headingLocation.getLongitude());
+        bundle.putDouble(AutoRaft.HEADING_LAT, headingLocation.getLatitude());
+
         msg.setData(bundle);
         try {
             mMessenger.send(msg);
@@ -212,4 +244,22 @@ public class AutoPilotService extends Service implements
         mLocationClient.removeLocationUpdates(this);
     }
 
+
+
+    private float angleTo(Location destLocation, Location headingLocation) {
+
+       /*GeomagneticField geoField = new GeomagneticField(
+                Double.valueOf(raftLocation.getLatitude()).floatValue(),
+                Double.valueOf(raftLocation.getLongitude()).floatValue(),
+                Double.valueOf(raftLocation.getAltitude()).floatValue(),
+                System.currentTimeMillis()
+        );
+        // Correct raftBearing
+        raftLocation.setBearing(raftLocation.getBearing() + geoField.getDeclination()); */
+
+        //return (raftLocation.getBearing() - raftLocation.bearingTo(destLocation)) * -1;
+
+        Log.d("TEST", "HeadingBearing: " + raftLocation.bearingTo(headingLocation) + "DestHeading: "+ raftLocation.bearingTo(destLocation));
+        return raftLocation.bearingTo(headingLocation) - raftLocation.bearingTo(destLocation);
+    }
 }
