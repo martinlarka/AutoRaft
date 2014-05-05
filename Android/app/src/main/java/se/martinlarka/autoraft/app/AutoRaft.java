@@ -25,12 +25,15 @@ import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
+
+import java.util.ArrayList;
 
 public class AutoRaft extends Activity {
 
@@ -52,15 +55,19 @@ public class AutoRaft extends Activity {
     public static final String LONG = "autoraft_longtitude";
     public static final String LAT = "autoraft_latitude";
     public static final String SPEED = "autoraft_speed";
-    public static final String BEARING_TO_DEST = "bearing_to_dest";
     public static final String DEST_LAT_ARRAY = "dest_lat_array";
     public static final String DEST_LNG_ARRAY = "dest_lng_array";
     public static final String CURRENT_DEST = "CURRENT_DEST";
     public static final String HEADING_LONG = "headingLong";
     public static final String HEADING_LAT = "headingLat";
+    public static final String WAYPOINTLIST = "waypointlist";
+    public static final String WAYPOINTBUNDLE = "WAYPOINTBUNDLE";
+    public static final String BEARING_TO_DEST = "BEARINGTODEST";
 
     private static TextView mTitle;
     private static TextView headingSeekBarValue;
+    private static TextView textview1;
+    private static TextView textview2;
     private static SeekBar headingSeekBar;
 
     // Name of the connected device
@@ -80,20 +87,32 @@ public class AutoRaft extends Activity {
     // Google Map
     private GoogleMap googleMap;
     private LatLng raftPos = null;
+    private LatLng previousRaftPos = null;
     private float raftBearing;
     private float raftSpeed;
     private double offsetPosLong;
     private double offsetPosLat;
     private boolean focusOnPosition = true;
     private boolean autoPilotOn = false;
+    private int currentDest = 0;
 
     private static final double OFFSET = 0.001;
 
+    private ArrayList<Marker> wayPoints = new ArrayList<Marker>();
+    private ArrayList<Polyline> wayPointLines = new ArrayList<Polyline>();
+    private ArrayList<Polyline> raftTrail = new ArrayList<Polyline>();
+
     // FIXME TEMP
     Marker headingMarker = null;
-    Marker destMarker = null;
     Polyline headingLine = null;
-    Polyline destLine = null;
+
+    static final CameraPosition UMEA =
+            new CameraPosition.Builder().target(new LatLng(63.83279, 20.26622))
+                    .zoom(10)
+                    .bearing(0)
+                    .tilt(0)
+                    .build();
+
 
     @Override
     protected void onDestroy() {
@@ -112,6 +131,8 @@ public class AutoRaft extends Activity {
 
         headingSeekBar = (SeekBar) findViewById(R.id.heading_seek_bar);
         headingSeekBarValue = (TextView) findViewById(R.id.seek_bar_value);
+        textview1 = (TextView) findViewById(R.id.textview1);
+        textview2 = (TextView) findViewById(R.id.textview2);
 
         headingSeekBar.setOnSeekBarChangeListener(new OnSeekBarChangeListener() {
 
@@ -260,37 +281,50 @@ public class AutoRaft extends Activity {
                         autoPilotOn = false;
                     }
                     break;
+
                 case MESSAGE_LOCATION_CHANGED:
                     raftBearing = msg.getData().getFloat(AutoRaft.BEARING);
                     raftSpeed = msg.getData().getFloat(AutoRaft.SPEED);
                     offsetPosLong = msg.getData().getDouble(AutoRaft.LONG);
                     offsetPosLat = msg.getData().getDouble(AutoRaft.LAT);
                     raftPos = new LatLng(offsetPosLat, offsetPosLong);
-                    double bearingToDest = msg.getData().getFloat(AutoRaft.BEARING_TO_DEST);
 
+                    float bearingToDest = msg.getData().getFloat(AutoRaft.BEARING_TO_DEST);
+                    headingSeekBarValue.setText("BearingToDest: " + bearingToDest);
 
+                    // Mark current waypoint
+                    currentDest = msg.getData().getInt(AutoRaft.CURRENT_DEST);
+                    if (!wayPoints.isEmpty()) {
+                        wayPoints.get(currentDest).setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE));
+                        if (currentDest > 0) {
+                            wayPoints.get(currentDest-1).setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN));
+                            wayPoints.get(currentDest-1).setAlpha(0.5f);
+                        }
+                    }
+                    textview2.setText("Current dest: "+ currentDest);
+
+                    // Animate camera on position
                     offsetPosLong += OFFSET * Math.sin(Math.toRadians(raftBearing));
                     offsetPosLat += OFFSET * Math.cos(Math.toRadians(raftBearing));
-
                     if (focusOnPosition) animateNavMode(raftBearing, offsetPosLong, offsetPosLat);
 
-                    headingSeekBarValue.setText("AngleToDest:" + bearingToDest+ "RaftBearing: "+raftBearing);
+                    textview1.setText("RaftBearing: "+raftBearing);
 
-                   // Add heading marker
+                   // Add heading line
                     double headingLat = msg.getData().getDouble(AutoRaft.HEADING_LAT);
                     double headingLong = msg.getData().getDouble(AutoRaft.HEADING_LONG);
-                    if (headingMarker != null) headingMarker.remove();
-                    headingMarker = googleMap.addMarker(new MarkerOptions().position(new LatLng(headingLat,headingLong)).title("Heading"));
-                    headingMarker.setRotation(180);
-
-                    // Draw lines between raft - heading  - dest
                     if (headingLine != null) headingLine.remove();
-
                     headingLine = googleMap.addPolyline(new PolylineOptions()
                             .add(new LatLng(raftPos.latitude, raftPos.longitude), new LatLng(headingLat, headingLong))
-                            .width(5)
-                            .color(Color.GREEN));
+                            .width(2)
+                            .color(Color.RED));
 
+                    // Save previous raft pos and trail // TODO Save line if specified from user
+                    if (previousRaftPos == null) previousRaftPos = raftPos;
+                    if (distanceBetween(previousRaftPos, raftPos) > 10) {
+                        raftTrail.add(googleMap.addPolyline(new PolylineOptions().add(previousRaftPos, raftPos).color(Color.GRAY)));
+                        previousRaftPos = raftPos;
+                    }
                     break;
             }
         }
@@ -360,6 +394,7 @@ public class AutoRaft extends Activity {
             } else {
                 googleMap.setMyLocationEnabled(true); // TODO Change to custom raft icon
                 googleMap.setBuildingsEnabled(false);
+                googleMap.moveCamera(CameraUpdateFactory.newCameraPosition(UMEA));
                 googleMap.setOnCameraChangeListener(new GoogleMap.OnCameraChangeListener() {
                     @Override
                     public void onCameraChange(CameraPosition cameraPosition) {
@@ -372,7 +407,7 @@ public class AutoRaft extends Activity {
                             cameraLocation.setLatitude(cameraPosition.target.latitude - OFFSET * Math.cos(Math.toRadians(raftBearing)));
                             cameraLocation.setLongitude(cameraPosition.target.longitude - OFFSET * Math.sin(Math.toRadians(raftBearing)));
 
-                            focusOnPosition  = cameraLocation.distanceTo(raftLocation) < 50;
+                            focusOnPosition  = cameraLocation.distanceTo(raftLocation) < 50 && cameraPosition.tilt > 70;
                         }
                     }
                 });
@@ -380,31 +415,15 @@ public class AutoRaft extends Activity {
                 googleMap.setOnMapLongClickListener(new GoogleMap.OnMapLongClickListener() {
                     @Override
                     public void onMapLongClick(LatLng latLng) {
-                        if (destMarker != null) destMarker.remove();
-                        destMarker = googleMap.addMarker(new MarkerOptions().position(latLng).title("TEST"));
+                        // Add marker
+                        wayPoints.add(googleMap.addMarker(new MarkerOptions().position(latLng).draggable(true).title(""+wayPoints.size())));
 
-                        // FIXME implement method to extract double arrays from marker array?
-                        double tempLat;
-                        double tempLng;
+                        // Send waypoints to service
+                        sendWaypointList();
 
-                        tempLat = latLng.latitude;
-                        tempLng = latLng.longitude;
-
-                        if (destLine != null) destLine.remove();
-
-                        destLine = googleMap.addPolyline(new PolylineOptions()
-                                .add(new LatLng(raftPos.latitude, raftPos.longitude), latLng)
-                                .width(5)
-                                .color(Color.BLUE));
-
-
-
-                        // Start auto pilot service for gps readings
-                        Intent intent = new Intent(getBaseContext(), AutoPilotService.class);
-                        intent.putExtra(AutoRaft.DEST_LAT_ARRAY, tempLat);
-                        intent.putExtra(AutoRaft.DEST_LNG_ARRAY, tempLng);
-                        intent.putExtra(AutoRaft.CURRENT_DEST, 0);
-                        startService(intent);
+                        // Connect lines between all the waypoints
+                        if ( wayPoints.size() > 1 )
+                            wayPointLines.add(googleMap.addPolyline(new PolylineOptions().add(wayPoints.get(wayPoints.size()-1).getPosition(),wayPoints.get(wayPoints.size()-2).getPosition()).color(Color.GREEN)));
                     }
                 });
                 googleMap.setOnMyLocationButtonClickListener(new GoogleMap.OnMyLocationButtonClickListener() {
@@ -414,7 +433,60 @@ public class AutoRaft extends Activity {
                         return true;
                     }
                 });
+                googleMap.setOnMarkerDragListener(new GoogleMap.OnMarkerDragListener() {
+                    @Override
+                    public void onMarkerDragStart(Marker marker) {
+                    }
+
+                    @Override
+                    public void onMarkerDrag(Marker marker) {
+                        // Move Polylines connected to marker FIXME Only move the lines affected    FIXME Ability to remove markers
+                        for (Polyline pl: wayPointLines) {
+                            pl.remove();
+                        }
+                        for (int i=0; i<wayPoints.size()-1; i++) {
+                            wayPointLines.add(googleMap.addPolyline(new PolylineOptions().add(wayPoints.get(i).getPosition(),wayPoints.get(i+1).getPosition()).color(Color.GREEN)));
+                        }
+                    }
+
+                    @Override
+                    public void onMarkerDragEnd(Marker marker) {
+                        sendWaypointList();
+                    }
+                });
             }
         }
+    }
+
+    private void sendWaypointList() {
+        Intent intent = new Intent(getBaseContext(), AutoPilotService.class);
+        Bundle bundle = new Bundle();
+        bundle.putParcelableArrayList(AutoRaft.WAYPOINTLIST, getArrayList(wayPoints));
+        intent.putExtra(AutoRaft.WAYPOINTBUNDLE, bundle);
+        startService(intent);
+        Log.d("Autopilot", "Waypoint sent");
+    }
+
+    private float distanceBetween(LatLng point1, LatLng point2) {
+        double earthRadius = 3958.75;
+        double latDiff = Math.toRadians(point2.latitude-point1.latitude);
+        double lngDiff = Math.toRadians(point2.longitude-point1.longitude);
+        double a = Math.sin(latDiff /2) * Math.sin(latDiff /2) +
+                Math.cos(Math.toRadians(point1.latitude)) * Math.cos(Math.toRadians(point2.latitude)) *
+                        Math.sin(lngDiff /2) * Math.sin(lngDiff /2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        double distance = earthRadius * c;
+
+        int meterConversion = 1609;
+
+        return new Float(distance * meterConversion).floatValue();
+    }
+
+    private ArrayList<LatLng> getArrayList(ArrayList<Marker> markerList) {
+        ArrayList<LatLng> latLngs = new ArrayList<LatLng>();
+        for ( Marker m : markerList ) {
+            latLngs.add(new LatLng(m.getPosition().latitude, m.getPosition().longitude));
+        }
+        return latLngs;
     }
 }
