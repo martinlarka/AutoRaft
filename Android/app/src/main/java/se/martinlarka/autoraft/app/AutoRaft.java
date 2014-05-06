@@ -290,7 +290,7 @@ public class AutoRaft extends Activity {
                     raftPos = new LatLng(offsetPosLat, offsetPosLong);
 
                     float bearingToDest = msg.getData().getFloat(AutoRaft.BEARING_TO_DEST);
-                    headingSeekBarValue.setText("BearingToDest: " + bearingToDest);
+                    headingSeekBarValue.setText("AngleToDest: " + bearingToDest);
 
                     // Mark current waypoint
                     currentDest = msg.getData().getInt(AutoRaft.CURRENT_DEST);
@@ -322,7 +322,7 @@ public class AutoRaft extends Activity {
                     // Save previous raft pos and trail // TODO Save line if specified from user
                     if (previousRaftPos == null) previousRaftPos = raftPos;
                     if (distanceBetween(previousRaftPos, raftPos) > 10) {
-                        raftTrail.add(googleMap.addPolyline(new PolylineOptions().add(previousRaftPos, raftPos).color(Color.GRAY)));
+                        raftTrail.add(googleMap.addPolyline(new PolylineOptions().add(previousRaftPos, raftPos).color(Color.GRAY).width(3)));
                         previousRaftPos = raftPos;
                     }
                     break;
@@ -407,7 +407,7 @@ public class AutoRaft extends Activity {
                             cameraLocation.setLatitude(cameraPosition.target.latitude - OFFSET * Math.cos(Math.toRadians(raftBearing)));
                             cameraLocation.setLongitude(cameraPosition.target.longitude - OFFSET * Math.sin(Math.toRadians(raftBearing)));
 
-                            focusOnPosition  = cameraLocation.distanceTo(raftLocation) < 50 && cameraPosition.tilt > 70;
+                            focusOnPosition  = cameraLocation.distanceTo(raftLocation) < 50 && cameraPosition.tilt > 50;
                         }
                     }
                 });

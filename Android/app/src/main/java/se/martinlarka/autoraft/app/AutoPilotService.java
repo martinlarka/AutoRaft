@@ -43,6 +43,8 @@ public class AutoPilotService extends Service implements
     */
     boolean mUpdatesRequested = false;
     private Location raftLocation;
+    private double raftAzimuth = 0;
+    private Location headingLocation;
     private ArrayList<LatLng> wayPoints = new ArrayList<LatLng>();
     private int currentDest = 0;
 
@@ -60,6 +62,7 @@ public class AutoPilotService extends Service implements
             }
             setupLocationClient();
             mLocationClient.connect();
+
             Toast.makeText(this, R.string.auto_pilot_started, Toast.LENGTH_LONG).show();
         } else {
             Bundle bundle = intent.getParcelableExtra(AutoRaft.WAYPOINTBUNDLE);
@@ -82,7 +85,6 @@ public class AutoPilotService extends Service implements
 
         // After disconnect() is called, the client is considered "dead".
         mLocationClient.disconnect();
-
         Toast.makeText(this, R.string.auto_pilot_stopped, Toast.LENGTH_LONG).show();
     }
 
@@ -96,7 +98,7 @@ public class AutoPilotService extends Service implements
 
         raftLocation = location;
 
-        Location headingLocation = new Location(LocationManager.PASSIVE_PROVIDER);
+        headingLocation = new Location(LocationManager.PASSIVE_PROVIDER);
         headingLocation.setLatitude(raftLocation.getLatitude() + 0.001 * Math.cos(Math.toRadians(raftLocation.getBearing())));
         headingLocation.setLongitude(raftLocation.getLongitude() + 0.001 * Math.sin(Math.toRadians(raftLocation.getBearing())));
 
@@ -118,8 +120,8 @@ public class AutoPilotService extends Service implements
         // Calculate new direction
         //bundle.putFloat(AutoRaft.BEARING_TO_DEST, angleTo(destLocation, headingLocation));
         if (wayPoints.size() > 0) {
-            bundle.putFloat(AutoRaft.BEARING_TO_DEST, bearingToDest());
-            Log.d("AutopilotService", "Bearing to DEST: " + bearingToDest()); }
+            bundle.putFloat(AutoRaft.BEARING_TO_DEST, angleFromHeading(wayPoints.get(currentDest))); // Angle from raft heading to waypoint
+            Log.d("AutopilotService", "Bearing to DEST: " + angleFromHeading(wayPoints.get(currentDest))); }
         else
             bundle.putFloat(AutoRaft.BEARING_TO_DEST, 0); // FIXME Maybe not 0???
 
@@ -132,17 +134,17 @@ public class AutoPilotService extends Service implements
         Log.d("AutopilotService", "Loaction changed");
     }
 
-    private int getCurrentDest() {
+    private int getCurrentDest() { //
         LatLng raftLatLng = new LatLng(raftLocation.getLatitude(), raftLocation.getLongitude());
         float minDistance = -1;
-        int iMin = 0;
-        for (int i=0; i<wayPoints.size(); i++) {
+        int iMin = currentDest;
+        for (int i=iMin; i < wayPoints.size(); i++) {
             float dist = distanceBetween(raftLatLng, wayPoints.get(i));
             if ( dist < minDistance || minDistance == -1 ) {
                 Location tempLocation = new Location(LocationManager.PASSIVE_PROVIDER);
                 tempLocation.setLatitude(wayPoints.get(i).latitude);
                 tempLocation.setLongitude(wayPoints.get(i).longitude);
-                if ( Math.abs(raftLocation.bearingTo(tempLocation)) < 90 ) {
+                if ( Math.abs(angleFromHeading(tempLocation)) < 90 ) {
                     minDistance = dist;
                     iMin = i;
                 }
@@ -260,30 +262,15 @@ public class AutoPilotService extends Service implements
         mLocationClient.removeLocationUpdates(this);
     }
 
-
-
-    private float angleTo(Location destLocation, Location headingLocation) {
-
-       /*GeomagneticField geoField = new GeomagneticField(
-                Double.valueOf(raftLocation.getLatitude()).floatValue(),
-                Double.valueOf(raftLocation.getLongitude()).floatValue(),
-                Double.valueOf(raftLocation.getAltitude()).floatValue(),
-                System.currentTimeMillis()
-        );
-        // Correct raftBearing
-        raftLocation.setBearing(raftLocation.getBearing() + geoField.getDeclination()); */
-
-        //return (raftLocation.getBearing() - raftLocation.bearingTo(destLocation)) * -1;
-
-        Log.d("TEST", "HeadingBearing: " + raftLocation.bearingTo(headingLocation) + "DestHeading: "+ raftLocation.bearingTo(destLocation));
-        return raftLocation.bearingTo(headingLocation) - raftLocation.bearingTo(destLocation);
+    private float angleFromHeading(Location destinaionLocation) {
+        return raftLocation.bearingTo(headingLocation) - raftLocation.bearingTo(destinaionLocation); // ???
     }
 
-    private float bearingToDest() {
+    private float angleFromHeading(LatLng destinaionLocation) {
         Location destLocation = new Location(LocationManager.PASSIVE_PROVIDER);
-        destLocation.setLatitude(wayPoints.get(currentDest).latitude);
-        destLocation.setLongitude(wayPoints.get(currentDest).longitude);
-        return raftLocation.bearingTo(destLocation);
+        destLocation.setLatitude(destinaionLocation.latitude);
+        destLocation.setLongitude(destinaionLocation.longitude);
+        return raftLocation.bearingTo(headingLocation) - raftLocation.bearingTo(destLocation);
     }
 
     private float distanceBetween(LatLng point1, LatLng point2) {
