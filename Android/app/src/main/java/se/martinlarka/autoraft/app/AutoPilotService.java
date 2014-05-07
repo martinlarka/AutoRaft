@@ -28,6 +28,7 @@ public class AutoPilotService extends Service implements
         GooglePlayServicesClient.ConnectionCallbacks,
         GooglePlayServicesClient.OnConnectionFailedListener {
 
+    private static final int TAILSIZE = 10;
     private Messenger mMessenger;
     private boolean isNavigating = false;
 
@@ -43,10 +44,13 @@ public class AutoPilotService extends Service implements
     */
     boolean mUpdatesRequested = false;
     private Location raftLocation;
-    private double raftAzimuth = 0;
+    private Location previousRaftLocation;
+    private float raftAzimuth = 0;
     private Location headingLocation;
     private ArrayList<LatLng> wayPoints = new ArrayList<LatLng>();
+    private ArrayList<LatLng> raftTail = new ArrayList<LatLng>();
     private int currentDest = 0;
+    private float filterLevel = 1;
 
     public AutoPilotService() {
     }
@@ -96,16 +100,19 @@ public class AutoPilotService extends Service implements
     @Override
     public void onLocationChanged(Location location) {
 
+        previousRaftLocation = raftLocation;
         raftLocation = location;
 
+        if ( previousRaftLocation != null ) raftAzimuth += (previousRaftLocation.bearingTo(raftLocation) - raftAzimuth) / filterLevel;
+
         headingLocation = new Location(LocationManager.PASSIVE_PROVIDER);
-        headingLocation.setLatitude(raftLocation.getLatitude() + 0.001 * Math.cos(Math.toRadians(raftLocation.getBearing())));
-        headingLocation.setLongitude(raftLocation.getLongitude() + 0.001 * Math.sin(Math.toRadians(raftLocation.getBearing())));
+        headingLocation.setLatitude(raftLocation.getLatitude() + 0.001 * Math.cos(Math.toRadians(raftAzimuth)));
+        headingLocation.setLongitude(raftLocation.getLongitude() + 0.001 * Math.sin(Math.toRadians(raftAzimuth)));
 
         // Send long, lat heading m.m to activity.
         Message msg = Message.obtain(null, AutoRaft.MESSAGE_LOCATION_CHANGED);
         Bundle bundle = new Bundle();
-        bundle.putFloat(AutoRaft.BEARING, location.getBearing());
+        bundle.putFloat(AutoRaft.BEARING, raftAzimuth);
         bundle.putDouble(AutoRaft.LONG, location.getLongitude());
         bundle.putDouble(AutoRaft.LAT, location.getLatitude());
         bundle.putFloat(AutoRaft.SPEED, location.getSpeed());
@@ -270,7 +277,7 @@ public class AutoPilotService extends Service implements
         Location destLocation = new Location(LocationManager.PASSIVE_PROVIDER);
         destLocation.setLatitude(destinaionLocation.latitude);
         destLocation.setLongitude(destinaionLocation.longitude);
-        return raftLocation.bearingTo(headingLocation) - raftLocation.bearingTo(destLocation);
+        return raftAzimuth - raftLocation.bearingTo(destLocation);
     }
 
     private float distanceBetween(LatLng point1, LatLng point2) {
