@@ -29,6 +29,7 @@ public class AutoPilotService extends Service implements
         GooglePlayServicesClient.OnConnectionFailedListener {
 
     private static final int TAILSIZE = 10;
+    public static final float SEARCH_WIDTH = 60;
     private Messenger mMessenger;
     private boolean isNavigating = false;
 
@@ -47,6 +48,7 @@ public class AutoPilotService extends Service implements
     private Location previousRaftLocation;
     private float raftAzimuth = 0;
     private Location headingLocation;
+    private Location negativeHeadingLocation;
     private ArrayList<LatLng> wayPoints = new ArrayList<LatLng>();
     private ArrayList<LatLng> raftTail = new ArrayList<LatLng>();
     private int currentDest = 0;
@@ -109,6 +111,11 @@ public class AutoPilotService extends Service implements
         headingLocation.setLatitude(raftLocation.getLatitude() + 0.001 * Math.cos(Math.toRadians(raftAzimuth)));
         headingLocation.setLongitude(raftLocation.getLongitude() + 0.001 * Math.sin(Math.toRadians(raftAzimuth)));
 
+        negativeHeadingLocation = new Location(LocationManager.PASSIVE_PROVIDER); // FIXME TEMP
+        negativeHeadingLocation.setLatitude(raftLocation.getLatitude() + 0.0001 * Math.cos(Math.toRadians(getHeading())));
+        negativeHeadingLocation.setLongitude(raftLocation.getLongitude() + 0.0001 * Math.sin(Math.toRadians(getHeading())));
+
+
         // Send long, lat heading m.m to activity.
         Message msg = Message.obtain(null, AutoRaft.MESSAGE_LOCATION_CHANGED);
         Bundle bundle = new Bundle();
@@ -119,6 +126,10 @@ public class AutoPilotService extends Service implements
 
         bundle.putDouble(AutoRaft.HEADING_LONG, headingLocation.getLongitude());
         bundle.putDouble(AutoRaft.HEADING_LAT, headingLocation.getLatitude());
+
+        // FIXME TEMP
+        bundle.putDouble("NEGLONG", negativeHeadingLocation.getLongitude());
+        bundle.putDouble("NEGLAT", negativeHeadingLocation.getLatitude());
 
         // Get destination
         currentDest = getCurrentDest();
@@ -151,7 +162,7 @@ public class AutoPilotService extends Service implements
                 Location tempLocation = new Location(LocationManager.PASSIVE_PROVIDER);
                 tempLocation.setLatitude(wayPoints.get(i).latitude);
                 tempLocation.setLongitude(wayPoints.get(i).longitude);
-                if ( Math.abs(angleFromHeading(tempLocation)) < 90 ) {
+                if ( Math.abs(angleFromHeading(tempLocation)) < AutoPilotService.SEARCH_WIDTH ) {
                     minDistance = dist;
                     iMin = i;
                 }
@@ -270,14 +281,14 @@ public class AutoPilotService extends Service implements
     }
 
     private float angleFromHeading(Location destinaionLocation) {
-        return raftLocation.bearingTo(headingLocation) - raftLocation.bearingTo(destinaionLocation); // ???
+        return raftLocation.bearingTo(destinaionLocation) - raftAzimuth; // ???
     }
 
     private float angleFromHeading(LatLng destinaionLocation) {
         Location destLocation = new Location(LocationManager.PASSIVE_PROVIDER);
         destLocation.setLatitude(destinaionLocation.latitude);
         destLocation.setLongitude(destinaionLocation.longitude);
-        return raftAzimuth - raftLocation.bearingTo(destLocation);
+        return raftLocation.bearingTo(destLocation) - raftAzimuth;
     }
 
     private float distanceBetween(LatLng point1, LatLng point2) {
@@ -293,5 +304,12 @@ public class AutoPilotService extends Service implements
         int meterConversion = 1609;
 
         return new Float(distance * meterConversion).floatValue();
+    }
+
+    private float getHeading() {
+        if ( previousRaftLocation != null ) {
+            return previousRaftLocation.bearingTo(raftLocation);
+        }
+        return 0;
     }
 }
