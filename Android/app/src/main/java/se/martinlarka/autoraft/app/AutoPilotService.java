@@ -46,9 +46,9 @@ public class AutoPilotService extends Service implements
     boolean mUpdatesRequested = false;
     private Location raftLocation;
     private Location previousRaftLocation;
-    private float raftAzimuth = 0;
     private Location headingLocation;
-    private Location negativeHeadingLocation;
+    private LatLng headingLatLng;
+    private float raftAzimuth = 0;
     private ArrayList<LatLng> wayPoints = new ArrayList<LatLng>();
     private ArrayList<LatLng> raftTail = new ArrayList<LatLng>();
     private int currentDest = 0;
@@ -108,13 +108,9 @@ public class AutoPilotService extends Service implements
         if ( previousRaftLocation != null ) raftAzimuth += (previousRaftLocation.bearingTo(raftLocation) - raftAzimuth) / filterLevel;
 
         headingLocation = new Location(LocationManager.PASSIVE_PROVIDER);
-        headingLocation.setLatitude(raftLocation.getLatitude() + 0.001 * Math.cos(Math.toRadians(raftAzimuth)));
-        headingLocation.setLongitude(raftLocation.getLongitude() + 0.001 * Math.sin(Math.toRadians(raftAzimuth)));
-
-        negativeHeadingLocation = new Location(LocationManager.PASSIVE_PROVIDER); // FIXME TEMP
-        negativeHeadingLocation.setLatitude(raftLocation.getLatitude() + 0.0001 * Math.cos(Math.toRadians(getHeading())));
-        negativeHeadingLocation.setLongitude(raftLocation.getLongitude() + 0.0001 * Math.sin(Math.toRadians(getHeading())));
-
+        headingLatLng = newPosition(location.getLatitude(), location.getLongitude(), raftAzimuth, 0.1);
+        headingLocation.setLatitude(headingLatLng.latitude);
+        headingLocation.setLongitude(headingLatLng.longitude);
 
         // Send long, lat heading m.m to activity.
         Message msg = Message.obtain(null, AutoRaft.MESSAGE_LOCATION_CHANGED);
@@ -127,10 +123,6 @@ public class AutoPilotService extends Service implements
         bundle.putDouble(AutoRaft.HEADING_LONG, headingLocation.getLongitude());
         bundle.putDouble(AutoRaft.HEADING_LAT, headingLocation.getLatitude());
 
-        // FIXME TEMP
-        bundle.putDouble("NEGLONG", negativeHeadingLocation.getLongitude());
-        bundle.putDouble("NEGLAT", negativeHeadingLocation.getLatitude());
-
         // Get destination
         currentDest = getCurrentDest();
         bundle.putInt(AutoRaft.CURRENT_DEST, currentDest);
@@ -138,11 +130,13 @@ public class AutoPilotService extends Service implements
         // Calculate new direction
         //bundle.putFloat(AutoRaft.BEARING_TO_DEST, angleTo(destLocation, headingLocation));
         if (wayPoints.size() > 0) {
-            bundle.putFloat(AutoRaft.BEARING_TO_DEST, angleFromHeading(wayPoints.get(currentDest))); // Angle from raft heading to waypoint
-            Log.d("AutopilotService", "Bearing to DEST: " + angleFromHeading(wayPoints.get(currentDest))); }
-        else
+            bundle.putFloat(AutoRaft.BEARING_TO_DEST, bearingToDestination(currentDest));
+            bundle.putFloat(AutoRaft.ANGLE_TO_DEST, angleFromHeading(wayPoints.get(currentDest)));
+        }
+        else {
             bundle.putFloat(AutoRaft.BEARING_TO_DEST, 0); // FIXME Maybe not 0???
-
+            bundle.putFloat(AutoRaft.ANGLE_TO_DEST, 0);
+        }
         msg.setData(bundle);
         try {
             mMessenger.send(msg);
@@ -291,6 +285,13 @@ public class AutoPilotService extends Service implements
         return raftLocation.bearingTo(destLocation) - raftAzimuth;
     }
 
+    private float bearingToDestination(int dest) {
+        Location destLocation = new Location(LocationManager.PASSIVE_PROVIDER);
+        destLocation.setLatitude(wayPoints.get(dest).latitude);
+        destLocation.setLongitude(wayPoints.get(dest).longitude);
+        return raftLocation.bearingTo(destLocation);
+    }
+
     private float distanceBetween(LatLng point1, LatLng point2) {
         double earthRadius = 3958.75;
         double latDiff = Math.toRadians(point2.latitude-point1.latitude);
@@ -311,5 +312,16 @@ public class AutoPilotService extends Service implements
             return previousRaftLocation.bearingTo(raftLocation);
         }
         return 0;
+    }
+
+    static public LatLng newPosition(double lat, double lng, double brng, double distance) {
+        double dist = distance/6371.0;
+        double latitude = Math.toRadians(lat);
+        double longitude = Math.toRadians(lng);
+        double bearing = Math.toRadians(brng);
+        double lat2 = Math.asin( Math.sin(latitude)*Math.cos(dist) + Math.cos(latitude)*Math.sin(dist)*Math.cos(bearing) );
+        double a = Math.atan2(Math.sin(bearing)*Math.sin(dist)*Math.cos(latitude), Math.cos(dist)-Math.sin(latitude)*Math.sin(lat2));
+
+        return new LatLng(Math.toDegrees(lat2), Math.toDegrees(longitude + a));
     }
 }

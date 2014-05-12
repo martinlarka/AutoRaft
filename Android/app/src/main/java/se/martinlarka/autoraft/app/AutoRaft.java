@@ -63,6 +63,7 @@ public class AutoRaft extends Activity {
     public static final String WAYPOINTLIST = "waypointlist";
     public static final String WAYPOINTBUNDLE = "WAYPOINTBUNDLE";
     public static final String BEARING_TO_DEST = "BEARINGTODEST";
+    public static final String ANGLE_TO_DEST = "ANGLETODEST";
 
     private static TextView mTitle;
     private static TextView headingSeekBarValue;
@@ -93,11 +94,12 @@ public class AutoRaft extends Activity {
     private float raftBearing;
     private float raftSpeed;
     private float bearingToDest;
+    private float angleToDest;
     private boolean focusOnPosition = true;
     private boolean autoPilotOn = false;
     private int currentDest = 0;
 
-    private static final double OFFSET = 0.001;
+    private static final double OFFSET = 0.1;
 
     private ArrayList<Marker> wayPoints = new ArrayList<Marker>();
     private ArrayList<Polyline> wayPointLines = new ArrayList<Polyline>();
@@ -297,7 +299,8 @@ public class AutoRaft extends Activity {
                     raftLocation.setLongitude(raftPosLong);
 
                     bearingToDest = msg.getData().getFloat(AutoRaft.BEARING_TO_DEST);
-                    headingSeekBarValue.setText("AngleToDest: " + bearingToDest);
+                    angleToDest = msg.getData().getFloat(AutoRaft.ANGLE_TO_DEST);
+                    headingSeekBarValue.setText("Bearing: " + bearingToDest + "Angle: " + angleToDest);
 
                     // Mark current waypoint
                     currentDest = msg.getData().getInt(AutoRaft.CURRENT_DEST);
@@ -330,17 +333,9 @@ public class AutoRaft extends Activity {
                             .width(3)
                             .color(Color.RED));
 
-                    double negHeadingLat = msg.getData().getDouble("NEGLAT");
-                    double negHeadingLong = msg.getData().getDouble("NEGLONG");
-                    if (negHeadingLine != null) negHeadingLine.remove();
-                    negHeadingLine = googleMap.addPolyline(new PolylineOptions()
-                            .add(new LatLng(raftPos.latitude, raftPos.longitude), new LatLng(negHeadingLat, negHeadingLong))
-                            .width(2)
-                            .color(Color.MAGENTA));
-
                     if (searchLines != null) searchLines.remove();
                     searchLines = googleMap.addPolyline(new PolylineOptions()
-                            .add(new LatLng(raftPos.latitude + 0.001 * Math.cos(Math.toRadians(raftLocation.bearingTo(headinLocation) + AutoPilotService.SEARCH_WIDTH)), raftPos.longitude + 0.001 * Math.sin(Math.toRadians(raftLocation.bearingTo(headinLocation) + AutoPilotService.SEARCH_WIDTH))), new LatLng(raftPos.latitude, raftPos.longitude), new LatLng(raftPos.latitude + 0.001 * Math.cos(Math.toRadians(raftLocation.bearingTo(headinLocation) - AutoPilotService.SEARCH_WIDTH)), raftPos.longitude + 0.001 * Math.sin(Math.toRadians(raftLocation.bearingTo(headinLocation) - AutoPilotService.SEARCH_WIDTH))))
+                            .add(AutoPilotService.newPosition(raftPosLat, raftPosLong, raftBearing - AutoPilotService.SEARCH_WIDTH, 0.2), raftPos, AutoPilotService.newPosition(raftPosLat, raftPosLong, raftBearing + AutoPilotService.SEARCH_WIDTH, 0.2))
                             .width(2)
                             .color(Color.YELLOW));
 
@@ -357,19 +352,16 @@ public class AutoRaft extends Activity {
 
     private void animateNavMode() {
         float bearing;
-        double offsetPosLat;
-        double offsetPosLong;
+        LatLng target;
         if (wayPoints.size() < 1) {
             bearing = raftBearing;
-            offsetPosLat = raftPosLat + OFFSET * Math.cos(Math.toRadians(raftBearing));
-            offsetPosLong = raftPosLong + OFFSET * Math.sin(Math.toRadians(raftBearing));
+            target = AutoPilotService.newPosition(raftPosLat, raftPosLong, raftBearing, OFFSET);
         } else {
             bearing = bearingToDest;
-            offsetPosLat = raftPosLat + OFFSET * Math.cos(Math.toRadians(bearingToDest));
-            offsetPosLong = raftPosLong + OFFSET * Math.sin(Math.toRadians(bearingToDest));
+            target = AutoPilotService.newPosition(raftPosLat, raftPosLong, bearingToDest, OFFSET);
         }
         CameraPosition cameraPosition = new CameraPosition.Builder()
-                .target(new LatLng(offsetPosLat, offsetPosLong))
+                .target(target)
                 .zoom(18)
                 .bearing(bearing)
                 .tilt(80)
@@ -441,9 +433,9 @@ public class AutoRaft extends Activity {
                             raftLocation.setLongitude(raftPos.longitude);
 
                             Location cameraLocation = new Location(LocationManager.PASSIVE_PROVIDER);
-                            cameraLocation.setLatitude(cameraPosition.target.latitude - OFFSET * Math.cos(Math.toRadians(raftBearing)));
-                            cameraLocation.setLongitude(cameraPosition.target.longitude - OFFSET * Math.sin(Math.toRadians(raftBearing)));
-
+                            LatLng cameraLatLng = AutoPilotService.newPosition(cameraPosition.target.latitude, cameraPosition.target.longitude, raftBearing, -1*OFFSET);
+                            cameraLocation.setLatitude(cameraLatLng.latitude);
+                            cameraLocation.setLongitude(cameraLatLng.longitude);
                             focusOnPosition  = cameraLocation.distanceTo(raftLocation) < 50 && cameraPosition.tilt > 50;
                         }
                     }
