@@ -16,12 +16,9 @@ import android.os.Messenger;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.widget.SeekBar;
-import android.widget.SeekBar.OnSeekBarChangeListener;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapFragment;
@@ -55,11 +52,7 @@ public class AutoRaft extends Activity {
     public static final String LONG = "autoraft_longtitude";
     public static final String LAT = "autoraft_latitude";
     public static final String SPEED = "autoraft_speed";
-    public static final String DEST_LAT_ARRAY = "dest_lat_array";
-    public static final String DEST_LNG_ARRAY = "dest_lng_array";
     public static final String CURRENT_DEST = "CURRENT_DEST";
-    public static final String HEADING_LONG = "headingLong";
-    public static final String HEADING_LAT = "headingLat";
     public static final String WAYPOINTLIST = "waypointlist";
     public static final String WAYPOINTBUNDLE = "WAYPOINTBUNDLE";
     public static final String BEARING_TO_DEST = "BEARINGTODEST";
@@ -100,6 +93,7 @@ public class AutoRaft extends Activity {
     private boolean focusOnPosition = true;
     private boolean autoPilotOn = false;
     private int currentDest = 0;
+    private boolean mapLocked = false;
 
     private static final double OFFSET = 0.1;
 
@@ -259,7 +253,7 @@ public class AutoRaft extends Activity {
         }
     };
 
-    private final Handler mAutoPilotHandler = new Handler() {
+    private final Handler mAutoPilotHandler = new Handler() { //TODO use atomic boolean for thread safety
         @Override
         public void handleMessage(Message msg) {
             switch (msg.what) {
@@ -274,69 +268,61 @@ public class AutoRaft extends Activity {
                     break;
 
                 case MESSAGE_LOCATION_CHANGED:
+
                     raftBearing = msg.getData().getFloat(AutoRaft.BEARING);
                     raftSpeed = msg.getData().getFloat(AutoRaft.SPEED);
                     raftPosLong = msg.getData().getDouble(AutoRaft.LONG);
                     raftPosLat = msg.getData().getDouble(AutoRaft.LAT);
                     raftPos = new LatLng(raftPosLat, raftPosLong);
 
-                    Location raftLocation = new Location(LocationManager.PASSIVE_PROVIDER); // FIXME TEMP
-                    raftLocation.setLatitude(raftPosLat);
-                    raftLocation.setLongitude(raftPosLong);
-
                     bearingToDest = msg.getData().getFloat(AutoRaft.BEARING_TO_DEST);
                     angleToDest = msg.getData().getFloat(AutoRaft.ANGLE_TO_DEST);
-                    headingSeekBarValue.setText("Bearing: " + bearingToDest + "Angle: " + angleToDest);
 
                     // Mark current waypoint
                     currentDest = msg.getData().getInt(AutoRaft.CURRENT_DEST);
-                    if (!wayPoints.isEmpty()) {
-                        wayPoints.get(currentDest).setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE));
-                        if (currentDest > 0) {
-                            wayPoints.get(currentDest-1).setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN));
-                            wayPoints.get(currentDest-1).setAlpha(0.5f);
+
+                    if (!mapLocked) {
+                        if (!wayPoints.isEmpty()) {
+                            wayPoints.get(currentDest).setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE));
+                            if (currentDest > 0) {
+                                wayPoints.get(currentDest-1).setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN));
+                                wayPoints.get(currentDest-1).setAlpha(0.5f);
+                            }
                         }
-                    }
-                    textview2.setText("Current dest: "+ currentDest);
+                        if (previousRaftPos == null) previousRaftPos = raftPos;
+                        // Animate camera on position
+                        if (focusOnPosition) animateNavMode();
 
-                    // Animate camera on position
-                    if (focusOnPosition) animateNavMode();
+                        headingSeekBarValue.setText("Bearing: " + bearingToDest + "Angle: " + angleToDest);
+                        textview1.setText("RaftBearing: " + raftBearing);
+                        textview2.setText("Current dest: " + currentDest);
 
-                    textview1.setText("RaftBearing: "+raftBearing);
+                        // DRAW LINES
+                        if (headingLine != null) headingLine.remove();
+                        headingLine = googleMap.addPolyline(new PolylineOptions()
+                                .add(new LatLng(raftPos.latitude, raftPos.longitude), AutoPilotService.newPosition(raftPos.latitude, raftPos.longitude, raftBearing, 0.1))
+                                .width(4)
+                                .color(Color.RED));
 
-                    // DRAW LINES
+                        if (destinationLine != null) destinationLine.remove();
+                        if (wayPoints.size() > 0) {
+                            destinationLine = googleMap.addPolyline(new PolylineOptions()
+                                    .add(new LatLng(raftPos.latitude, raftPos.longitude), wayPoints.get(currentDest).getPosition())
+                                    .width(1)
+                                    .color(Color.GREEN));
+                        }
 
-                    if (headingLine != null) headingLine.remove();
-                    headingLine = googleMap.addPolyline(new PolylineOptions()
-                            .add(new LatLng(raftPos.latitude, raftPos.longitude), AutoPilotService.newPosition(raftPos.latitude, raftPos.longitude, raftBearing, 0.1))
-                            .width(4)
-                            .color(Color.RED));
+                        if (searchLines != null) searchLines.remove();
+                        searchLines = googleMap.addPolyline(new PolylineOptions()
+                                .add(AutoPilotService.newPosition(raftPosLat, raftPosLong, raftBearing - AutoPilotService.SEARCH_WIDTH, 0.2), raftPos, AutoPilotService.newPosition(raftPosLat, raftPosLong, raftBearing + AutoPilotService.SEARCH_WIDTH, 0.2))
+                                .width(2)
+                                .color(Color.YELLOW));
 
-                    if (azimuthLine != null) azimuthLine.remove();
-                    azimuthLine = googleMap.addPolyline(new PolylineOptions()
-                            .add(new LatLng(raftPos.latitude, raftPos.longitude), AutoPilotService.newPosition(raftPos.latitude, raftPos.longitude, msg.getData().getFloat(AutoRaft.AZIMUTH), 0.1))
-                            .width(2)
-                            .color(Color.WHITE));
-
-                    if (destinationLine != null) destinationLine.remove();
-                    if (wayPoints.size() > 0) {
-                        destinationLine = googleMap.addPolyline(new PolylineOptions()
-                                .add(new LatLng(raftPos.latitude, raftPos.longitude), wayPoints.get(currentDest).getPosition())
-                                .width(1)
-                                .color(Color.GREEN));
-                    }
-
-                    if (searchLines != null) searchLines.remove();
-                    searchLines = googleMap.addPolyline(new PolylineOptions()
-                            .add(AutoPilotService.newPosition(raftPosLat, raftPosLong, raftBearing - AutoPilotService.SEARCH_WIDTH, 0.2), raftPos, AutoPilotService.newPosition(raftPosLat, raftPosLong, raftBearing + AutoPilotService.SEARCH_WIDTH, 0.2))
-                            .width(2)
-                            .color(Color.YELLOW));
-
-                    // Save previous raft pos and trail // TODO Save line if specified from user
-                    if (previousRaftPos == null) previousRaftPos = raftPos;
-                    if (distanceBetween(previousRaftPos, raftPos) > 10) {
-                        raftTrail.add(googleMap.addPolyline(new PolylineOptions().add(previousRaftPos, raftPos).color(Color.GRAY).width(3)));
-                        previousRaftPos = raftPos;
+                        // Save previous raft pos and trail // TODO Save lines in array, and re draw each all(??) lines??
+                        if (distanceBetween(previousRaftPos, raftPos) > 10) {
+                            raftTrail.add(googleMap.addPolyline(new PolylineOptions().add(previousRaftPos, raftPos).color(Color.GRAY).width(3)));
+                            previousRaftPos = raftPos;
+                        }
                     }
                     break;
             }
@@ -458,6 +444,7 @@ public class AutoRaft extends Activity {
                 googleMap.setOnMarkerDragListener(new GoogleMap.OnMarkerDragListener() {
                     @Override
                     public void onMarkerDragStart(Marker marker) {
+                        mapLocked = true;
                     }
 
                     @Override
@@ -474,6 +461,8 @@ public class AutoRaft extends Activity {
                     @Override
                     public void onMarkerDragEnd(Marker marker) {
                         sendWaypointList();
+                        mapLocked = false;
+                        mAutoPilotHandler.
                     }
                 });
             }

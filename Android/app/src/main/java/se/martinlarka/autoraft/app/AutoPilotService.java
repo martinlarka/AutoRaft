@@ -321,13 +321,6 @@ public class AutoPilotService extends Service implements
         return new Float(distance * meterConversion).floatValue();
     }
 
-    private float getHeading() {
-        if ( previousRaftLocation != null ) {
-            return previousRaftLocation.bearingTo(raftLocation);
-        }
-        return 0;
-    }
-
     static public LatLng newPosition(double lat, double lng, double brng, double distance) {
         double dist = distance/6371.0;
         double latitude = Math.toRadians(lat);

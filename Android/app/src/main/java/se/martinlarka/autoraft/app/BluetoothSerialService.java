@@ -430,7 +430,9 @@ public class BluetoothSerialService {
         @Override
         public void handleMessage(Message msg) {
             if (msg.what == AutoRaft.MESSAGE_LOCATION_CHANGED) {
-                write(msg.getData().getInt(AutoRaft.ANGLE_TO_DEST));
+                if (mState == STATE_CONNECTED) {
+                    write(msg.getData().getInt(AutoRaft.ANGLE_TO_DEST));
+                }
             }
         }
     };
