@@ -30,7 +30,8 @@ public class AutoPilotService extends Service implements
 
     private static final int TAILSIZE = 10;
     public static final float SEARCH_WIDTH = 60;
-    private Messenger mMessenger;
+    private Messenger gpsMessenger;
+    private Messenger serialMessenger;
     private boolean isNavigating = false;
 
     // A request to connect to Location Services
@@ -52,7 +53,6 @@ public class AutoPilotService extends Service implements
     private ArrayList<LatLng> wayPoints = new ArrayList<LatLng>();
     private ArrayList<LatLng> raftTail = new ArrayList<LatLng>();
     private int currentDest = 0;
-    private float filterLevel = 1;
 
     public AutoPilotService() {
     }
@@ -62,9 +62,11 @@ public class AutoPilotService extends Service implements
         Bundle extras = intent.getExtras();
         if (startId == 1) { // FIXME Get start mode instead of just startId == 1
             if (extras != null) {
-                mMessenger = (Messenger) extras.get("MESSENGER");
+                gpsMessenger = (Messenger) extras.get(AutoRaft.GPSMESSENGER);
+                serialMessenger = (Messenger) extras.get(AutoRaft.SERIALMESSENGER);
             } else {
-                mMessenger = null;
+                gpsMessenger = null;
+                serialMessenger = null;
             }
             setupLocationClient();
             mLocationClient.connect();
@@ -105,7 +107,8 @@ public class AutoPilotService extends Service implements
         previousRaftLocation = raftLocation;
         raftLocation = location;
 
-        if ( previousRaftLocation != null ) raftAzimuth += (previousRaftLocation.bearingTo(raftLocation) - raftAzimuth) / filterLevel;
+        // Lowpass filter
+        if ( previousRaftLocation != null ) raftAzimuth = previousRaftLocation.bearingTo(raftLocation);
 
         headingLocation = new Location(LocationManager.PASSIVE_PROVIDER);
         headingLatLng = newPosition(location.getLatitude(), location.getLongitude(), raftAzimuth, 0.1);
@@ -115,23 +118,21 @@ public class AutoPilotService extends Service implements
         // Send long, lat heading m.m to activity.
         Message msg = Message.obtain(null, AutoRaft.MESSAGE_LOCATION_CHANGED);
         Bundle bundle = new Bundle();
-        bundle.putFloat(AutoRaft.BEARING, raftAzimuth);
+        bundle.putFloat(AutoRaft.AZIMUTH, raftAzimuth);
+        bundle.putFloat(AutoRaft.BEARING, raftLocation.getBearing());
         bundle.putDouble(AutoRaft.LONG, location.getLongitude());
         bundle.putDouble(AutoRaft.LAT, location.getLatitude());
         bundle.putFloat(AutoRaft.SPEED, location.getSpeed());
-
-        bundle.putDouble(AutoRaft.HEADING_LONG, headingLocation.getLongitude());
-        bundle.putDouble(AutoRaft.HEADING_LAT, headingLocation.getLatitude());
 
         // Get destination
         currentDest = getCurrentDest();
         bundle.putInt(AutoRaft.CURRENT_DEST, currentDest);
 
         // Calculate new direction
-        //bundle.putFloat(AutoRaft.BEARING_TO_DEST, angleTo(destLocation, headingLocation));
         if (wayPoints.size() > 0) {
             bundle.putFloat(AutoRaft.BEARING_TO_DEST, bearingToDestination(currentDest));
             bundle.putFloat(AutoRaft.ANGLE_TO_DEST, angleFromHeading(wayPoints.get(currentDest)));
+            sendAngleToSerial(angleFromHeading(wayPoints.get(currentDest)));
         }
         else {
             bundle.putFloat(AutoRaft.BEARING_TO_DEST, 0); // FIXME Maybe not 0???
@@ -139,14 +140,27 @@ public class AutoPilotService extends Service implements
         }
         msg.setData(bundle);
         try {
-            mMessenger.send(msg);
+            gpsMessenger.send(msg);
         } catch (RemoteException e) {
             Log.w(getClass().getName(), "Exception sending message");
         }
-        Log.d("AutopilotService", "Loaction changed");
     }
 
-    private int getCurrentDest() { //
+    private void sendAngleToSerial(float v) {
+        // Convert angle value to int going from 0 - 255
+
+        Message msg = Message.obtain(null, AutoRaft.MESSAGE_LOCATION_CHANGED);
+        Bundle bundle = new Bundle();
+        bundle.putFloat(AutoRaft.ANGLE_TO_DEST, v);
+        msg.setData(bundle);
+        try {
+            serialMessenger.send(msg);
+        } catch (RemoteException e) {
+            Log.w(getClass().getName(), "Exception sending message");
+        }
+    }
+
+    private int getCurrentDest() { // FIXME Better!!!
         LatLng raftLatLng = new LatLng(raftLocation.getLatitude(), raftLocation.getLongitude());
         float minDistance = -1;
         int iMin = currentDest;

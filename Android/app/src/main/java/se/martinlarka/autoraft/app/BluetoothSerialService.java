@@ -53,8 +53,7 @@ public class BluetoothSerialService {
     private ConnectThread mConnectThread;
     private ConnectedThread mConnectedThread;
     private int mState;
-    private SeekBar heading;
-    
+
     private boolean mAllowInsecureConnections;
     
     private Context mContext;
@@ -70,13 +69,12 @@ public class BluetoothSerialService {
      * @param context  The UI Activity Context
      * @param handler  A Handler to send messages back to the UI Activity
      */
-    public BluetoothSerialService(Context context, Handler handler, SeekBar headingSeekBar) {
+    public BluetoothSerialService(Context context, Handler handler) {
         mAdapter = BluetoothAdapter.getDefaultAdapter();
         mState = STATE_NONE;
         mHandler = handler;
         mContext = context;
         mAllowInsecureConnections = true;
-        heading = headingSeekBar;
     }
 
     /**
@@ -426,6 +424,19 @@ public class BluetoothSerialService {
     
     public boolean getAllowInsecureConnections() {
     	return mAllowInsecureConnections;
+    }
+
+    private final Handler mAutoPilotHandler = new Handler() {
+        @Override
+        public void handleMessage(Message msg) {
+            if (msg.what == AutoRaft.MESSAGE_LOCATION_CHANGED) {
+                write(msg.getData().getInt(AutoRaft.ANGLE_TO_DEST));
+            }
+        }
+    };
+
+    public Handler getAutoPilotHandler() {
+        return mAutoPilotHandler;
     }
 
 }

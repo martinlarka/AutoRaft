@@ -64,12 +64,14 @@ public class AutoRaft extends Activity {
     public static final String WAYPOINTBUNDLE = "WAYPOINTBUNDLE";
     public static final String BEARING_TO_DEST = "BEARINGTODEST";
     public static final String ANGLE_TO_DEST = "ANGLETODEST";
+    public static final String AZIMUTH = "AZIMUTH";
+    public static final String SERIALMESSENGER = "SERIALMESSENGER";
+    public static final String GPSMESSENGER = "GPSMESSENGER";
 
     private static TextView mTitle;
     private static TextView headingSeekBarValue;
     private static TextView textview1;
     private static TextView textview2;
-    private static SeekBar headingSeekBar;
 
     // Name of the connected device
     private String mConnectedDeviceName = null;
@@ -106,9 +108,9 @@ public class AutoRaft extends Activity {
     private ArrayList<Polyline> raftTrail = new ArrayList<Polyline>();
 
     // FIXME TEMP
-    Marker headingMarker = null;
     Polyline headingLine = null;
-    Polyline negHeadingLine = null;
+    Polyline destinationLine = null;
+    Polyline azimuthLine = null;
     Polyline searchLines = null;
 
     static final CameraPosition UMEA =
@@ -134,27 +136,9 @@ public class AutoRaft extends Activity {
         mTitle = (TextView) findViewById(R.id.device);
         mTitle.setText(R.string.title_not_connected);
 
-        headingSeekBar = (SeekBar) findViewById(R.id.heading_seek_bar);
         headingSeekBarValue = (TextView) findViewById(R.id.seek_bar_value);
         textview1 = (TextView) findViewById(R.id.textview1);
         textview2 = (TextView) findViewById(R.id.textview2);
-
-        headingSeekBar.setOnSeekBarChangeListener(new OnSeekBarChangeListener() {
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {}
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {}
-
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress,
-                                          boolean fromUser) {
-
-                headingSeekBarValue.setText(progress + "");
-                mSerialService.write(progress);
-            }
-        });
 
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
@@ -163,7 +147,7 @@ public class AutoRaft extends Activity {
             return;
         }
 
-        mSerialService = new BluetoothSerialService(this, mHandlerBT, headingSeekBar);
+        mSerialService = new BluetoothSerialService(this, mHandlerBT);
 
         try {
             // Loading map
@@ -175,8 +159,10 @@ public class AutoRaft extends Activity {
 
         // Start auto pilot service for gps readings
         Intent intent = new Intent(this, AutoPilotService.class);
-        Messenger messenger = new Messenger(mAutoPilotHandler);
-        intent.putExtra("MESSENGER", messenger);
+        Messenger gpsMessenger = new Messenger(mAutoPilotHandler);
+        intent.putExtra(AutoRaft.GPSMESSENGER, gpsMessenger);
+        Messenger btMessenger = new Messenger(mSerialService.getAutoPilotHandler());
+        intent.putExtra(AutoRaft.SERIALMESSENGER, btMessenger);
         startService(intent);
     }
 
@@ -318,20 +304,27 @@ public class AutoRaft extends Activity {
 
                     textview1.setText("RaftBearing: "+raftBearing);
 
-                   // Add heading line
-                    double headingLat = msg.getData().getDouble(AutoRaft.HEADING_LAT);
-                    double headingLong = msg.getData().getDouble(AutoRaft.HEADING_LONG);
-
-                    // FIXME TEMP
-                    Location headinLocation = new Location(LocationManager.PASSIVE_PROVIDER);
-                    headinLocation.setLatitude(headingLat);
-                    headinLocation.setLongitude(headingLong);
+                    // DRAW LINES
 
                     if (headingLine != null) headingLine.remove();
                     headingLine = googleMap.addPolyline(new PolylineOptions()
-                            .add(new LatLng(raftPos.latitude, raftPos.longitude), new LatLng(headingLat, headingLong))
-                            .width(3)
+                            .add(new LatLng(raftPos.latitude, raftPos.longitude), AutoPilotService.newPosition(raftPos.latitude, raftPos.longitude, raftBearing, 0.1))
+                            .width(4)
                             .color(Color.RED));
+
+                    if (azimuthLine != null) azimuthLine.remove();
+                    azimuthLine = googleMap.addPolyline(new PolylineOptions()
+                            .add(new LatLng(raftPos.latitude, raftPos.longitude), AutoPilotService.newPosition(raftPos.latitude, raftPos.longitude, msg.getData().getFloat(AutoRaft.AZIMUTH), 0.1))
+                            .width(2)
+                            .color(Color.WHITE));
+
+                    if (destinationLine != null) destinationLine.remove();
+                    if (wayPoints.size() > 0) {
+                        destinationLine = googleMap.addPolyline(new PolylineOptions()
+                                .add(new LatLng(raftPos.latitude, raftPos.longitude), wayPoints.get(currentDest).getPosition())
+                                .width(1)
+                                .color(Color.GREEN));
+                    }
 
                     if (searchLines != null) searchLines.remove();
                     searchLines = googleMap.addPolyline(new PolylineOptions()
