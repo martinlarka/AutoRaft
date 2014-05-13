@@ -132,7 +132,7 @@ public class AutoPilotService extends Service implements
         if (wayPoints.size() > 0) {
             bundle.putFloat(AutoRaft.BEARING_TO_DEST, bearingToDestination(currentDest));
             bundle.putFloat(AutoRaft.ANGLE_TO_DEST, angleFromHeading(wayPoints.get(currentDest)));
-            sendAngleToSerial(angleFromHeading(wayPoints.get(currentDest)));
+            sendAngleToSerial(angleFromHeading(wayPoints.get(currentDest))); // FIXME Should be updated when map is locked
         }
         else {
             bundle.putFloat(AutoRaft.BEARING_TO_DEST, 0); // FIXME Maybe not 0???

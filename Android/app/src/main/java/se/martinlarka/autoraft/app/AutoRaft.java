@@ -104,7 +104,6 @@ public class AutoRaft extends Activity {
     // FIXME TEMP
     Polyline headingLine = null;
     Polyline destinationLine = null;
-    Polyline azimuthLine = null;
     Polyline searchLines = null;
 
     static final CameraPosition UMEA =
@@ -462,7 +461,6 @@ public class AutoRaft extends Activity {
                     public void onMarkerDragEnd(Marker marker) {
                         sendWaypointList();
                         mapLocked = false;
-                        mAutoPilotHandler.
                     }
                 });
             }

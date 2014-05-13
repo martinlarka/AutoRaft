@@ -431,7 +431,8 @@ public class BluetoothSerialService {
         public void handleMessage(Message msg) {
             if (msg.what == AutoRaft.MESSAGE_LOCATION_CHANGED) {
                 if (mState == STATE_CONNECTED) {
-                    write(msg.getData().getInt(AutoRaft.ANGLE_TO_DEST));
+                    float value = msg.getData().getFloat(AutoRaft.ANGLE_TO_DEST); // Angle to dest goes from -180(port side) to 180(starboard)
+                    write(Math.round(255 * (value + 180) / 360)); // Should map angle to value 0-255
                 }
             }
         }
