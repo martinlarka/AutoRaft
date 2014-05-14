@@ -49,6 +49,7 @@ public class AutoPilotService extends Service implements
     private ArrayList<LatLng> wayPoints = new ArrayList<LatLng>();
     private ArrayList<LatLng> raftTail = new ArrayList<LatLng>();
     private int currentDest = 0;
+    private boolean autoPilotOn = true;
 
     public AutoPilotService() {
     }
@@ -72,6 +73,11 @@ public class AutoPilotService extends Service implements
             Bundle bundle = intent.getParcelableExtra(AutoRaft.WAYPOINTBUNDLE);
             if (bundle != null)
                 wayPoints = bundle.getParcelableArrayList(AutoRaft.WAYPOINTLIST);
+            else {
+                bundle = intent.getParcelableExtra(AutoRaft.AUTOPILOTON);
+                if (bundle != null)
+                    autoPilotOn = bundle.getBoolean(AutoRaft.AUTOPILOTON);
+            }
         }
 
         return Service.START_STICKY;
@@ -117,10 +123,10 @@ public class AutoPilotService extends Service implements
         if (wayPoints.size() > 0) {
             bundle.putFloat(AutoRaft.BEARING_TO_DEST, bearingToDestination(currentDest));
             bundle.putFloat(AutoRaft.ANGLE_TO_DEST, angleFromHeading(wayPoints.get(currentDest)));
-            sendAngleToSerial(angleFromHeading(wayPoints.get(currentDest))); // FIXME Should be updated when map is locked
+            if (autoPilotOn) sendAngleToSerial(angleFromHeading(wayPoints.get(currentDest)));
         }
         else {
-            bundle.putFloat(AutoRaft.BEARING_TO_DEST, 0); // FIXME Maybe not 0???
+            bundle.putFloat(AutoRaft.BEARING_TO_DEST, 0);
             bundle.putFloat(AutoRaft.ANGLE_TO_DEST, 0);
         }
         msg.setData(bundle);
@@ -132,8 +138,6 @@ public class AutoPilotService extends Service implements
     }
 
     private void sendAngleToSerial(float v) {
-        // Convert angle value to int going from 0 - 255
-
         Message msg = Message.obtain(null, AutoRaft.MESSAGE_LOCATION_CHANGED);
         Bundle bundle = new Bundle();
         bundle.putFloat(AutoRaft.ANGLE_TO_DEST, v);
@@ -146,20 +150,18 @@ public class AutoPilotService extends Service implements
     }
 
     private int getCurrentDest() {
-        if ( wayPoints.size() == 0 )
-            return 0;
+        if ( wayPoints.size() < 2 ) return 0;
 
         Location tempLocation = new Location(LocationManager.PASSIVE_PROVIDER);
         tempLocation.setLatitude(wayPoints.get(currentDest).latitude);
         tempLocation.setLongitude(wayPoints.get(currentDest).longitude);
 
-        // If destination gets outside of search width
+        // If destination gets outside of search width find new destination
         if (Math.abs(angleFromHeading(tempLocation)) > AutoPilotService.SEARCH_WIDTH) {
-
             // Current dest is first dest. return next dest
             if (currentDest == 0) return 1;
             // Current dest is last dest. return next dest
-            if (currentDest == wayPoints.size() -1) return wayPoints.size() - 2;
+            if (currentDest == wayPoints.size() - 1) return wayPoints.size() - 2;
 
             // If angle to heading after destination is smaller
             if ( Math.abs(angleFromHeading(new LatLng(wayPoints.get(currentDest - 1).latitude, wayPoints.get(currentDest - 1).longitude))) > Math.abs(angleFromHeading(new LatLng(wayPoints.get(currentDest + 1).latitude, wayPoints.get(currentDest + 1).longitude))) ) {
@@ -168,6 +170,7 @@ public class AutoPilotService extends Service implements
                 return currentDest - 1;
             }
         }
+        // As long as current destination is inside search width return current destination
         return currentDest;
     }
 
@@ -296,21 +299,6 @@ public class AutoPilotService extends Service implements
         destLocation.setLatitude(wayPoints.get(dest).latitude);
         destLocation.setLongitude(wayPoints.get(dest).longitude);
         return raftLocation.bearingTo(destLocation);
-    }
-
-    private float distanceBetween(LatLng point1, LatLng point2) {
-        double earthRadius = 3958.75;
-        double latDiff = Math.toRadians(point2.latitude-point1.latitude);
-        double lngDiff = Math.toRadians(point2.longitude-point1.longitude);
-        double a = Math.sin(latDiff /2) * Math.sin(latDiff /2) +
-                Math.cos(Math.toRadians(point1.latitude)) * Math.cos(Math.toRadians(point2.latitude)) *
-                        Math.sin(lngDiff /2) * Math.sin(lngDiff /2);
-        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        double distance = earthRadius * c;
-
-        int meterConversion = 1609;
-
-        return new Float(distance * meterConversion).floatValue();
     }
 
     static public LatLng newPosition(double lat, double lng, double brng, double distance) {

@@ -59,6 +59,7 @@ public class AutoRaft extends Activity {
     public static final String ANGLE_TO_DEST = "ANGLETODEST";
     public static final String SERIALMESSENGER = "SERIALMESSENGER";
     public static final String GPSMESSENGER = "GPSMESSENGER";
+    public static final String AUTOPILOTON = "AUTOPILOTON";
 
     private static TextView mTitle;
     private static TextView headingSeekBarValue;
@@ -182,9 +183,14 @@ public class AutoRaft extends Activity {
                 }
                 return true;
             case R.id.auto_pilot:
-                // If Auto pilot is on
+                // If Auto pilot is on, navigate to dest TODO More notification that autopilot is on/off
+                autoPilotOn = !autoPilotOn;
                 if (autoPilotOn) {
+                    mMenuItemAutoPilot.setTitle(R.string.start_auto_pilot);
+                } else {
+                    mMenuItemAutoPilot.setTitle(R.string.stop_auto_pilot);
                 }
+                sendAutoPilotOn(autoPilotOn);
                 return true;
         }
         return false;
@@ -251,7 +257,7 @@ public class AutoRaft extends Activity {
         }
     };
 
-    private final Handler mAutoPilotHandler = new Handler() { //TODO use atomic boolean for thread safety
+    private final Handler mAutoPilotHandler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
             switch (msg.what) {
@@ -265,7 +271,7 @@ public class AutoRaft extends Activity {
                     }
                     break;
 
-                case MESSAGE_LOCATION_CHANGED: // TODO Angle to dest should be updated and sent..
+                case MESSAGE_LOCATION_CHANGED:
 
                     raftBearing = msg.getData().getFloat(AutoRaft.BEARING);
                     raftSpeed = msg.getData().getFloat(AutoRaft.SPEED);
@@ -419,7 +425,7 @@ public class AutoRaft extends Activity {
                     @Override
                     public void onMapLongClick(LatLng latLng) {
                         // Add marker
-                        wayPoints.add(googleMap.addMarker(new MarkerOptions().position(latLng).draggable(true).title(""+wayPoints.size())));
+                        wayPoints.add(googleMap.addMarker(new MarkerOptions().position(latLng).draggable(true).title(""+wayPoints.size()).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN))));
 
                         // Send waypoints to service
                         sendWaypointList();
@@ -437,24 +443,30 @@ public class AutoRaft extends Activity {
                     }
                 });
                 googleMap.setOnMarkerDragListener(new GoogleMap.OnMarkerDragListener() {
+                    int i;
                     @Override
                     public void onMarkerDragStart(Marker marker) {
                         mapLocked = true;
+                        i = wayPoints.indexOf(marker);
                     }
 
                     @Override
                     public void onMarkerDrag(Marker marker) {
-                        // Move Polylines connected to marker FIXME Only move the lines affected    FIXME Ability to remove markers
-                        for (Polyline pl: wayPointLines) {
-                            pl.remove();
-                        }
-                        for (int i=0; i<wayPoints.size()-1; i++) {
-                            wayPointLines.add(googleMap.addPolyline(new PolylineOptions().add(wayPoints.get(i).getPosition(),wayPoints.get(i+1).getPosition()).color(Color.GREEN)));
+                        // Move Polylines connected to marker
+                        if (i != wayPoints.size() - 1) { // If marker is not last waypoint
+                            wayPointLines.get(i).remove();
+                            wayPointLines.add(i, googleMap.addPolyline(new PolylineOptions().add(wayPoints.get(i).getPosition(), wayPoints.get(i + 1).getPosition()).color(Color.GREEN)));
+                        } else if (i != 0) { // If marker is not first waypoint
+                            wayPointLines.get(i - 1).remove();
+                            wayPointLines.add(i - 1, googleMap.addPolyline(new PolylineOptions().add(wayPoints.get(i).getPosition(), wayPoints.get(i - 1).getPosition()).color(Color.GREEN)));
                         }
                     }
 
                     @Override
                     public void onMarkerDragEnd(Marker marker) {
+                        // If marker is dropped closer than 10m remove marker
+                        if (distanceBetween(marker.getPosition(), wayPoints.get(i-1).getPosition()) < 10) wayPoints.remove(i);
+                        else if (distanceBetween(marker.getPosition(), wayPoints.get(i+1).getPosition()) < 10) wayPoints.remove(i);
                         sendWaypointList();
                         mapLocked = false;
                     }
@@ -469,7 +481,14 @@ public class AutoRaft extends Activity {
         bundle.putParcelableArrayList(AutoRaft.WAYPOINTLIST, getArrayList(wayPoints));
         intent.putExtra(AutoRaft.WAYPOINTBUNDLE, bundle);
         startService(intent);
-        Log.d("Autopilot", "Waypoint sent");
+    }
+
+    private void sendAutoPilotOn(boolean autoPilotOn) {
+        Intent intent = new Intent(getBaseContext(), AutoPilotService.class);
+        Bundle bundle = new Bundle();
+        bundle.putBoolean(AutoRaft.AUTOPILOTON, autoPilotOn);
+        intent.putExtra(AutoRaft.AUTOPILOTON, bundle);
+        startService(intent);
     }
 
     private float distanceBetween(LatLng point1, LatLng point2) {
