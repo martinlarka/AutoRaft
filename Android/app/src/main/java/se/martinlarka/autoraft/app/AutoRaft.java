@@ -265,7 +265,7 @@ public class AutoRaft extends Activity {
                     }
                     break;
 
-                case MESSAGE_LOCATION_CHANGED:
+                case MESSAGE_LOCATION_CHANGED: // TODO Angle to dest should be updated and sent..
 
                     raftBearing = msg.getData().getFloat(AutoRaft.BEARING);
                     raftSpeed = msg.getData().getFloat(AutoRaft.SPEED);
@@ -279,12 +279,11 @@ public class AutoRaft extends Activity {
 
                     if (!mapLocked) {
                         if (!wayPoints.isEmpty()) {
+                            for (Marker m : wayPoints)
+                                m.setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN));
                             wayPoints.get(currentDest).setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE));
-                            if (currentDest > 0) {
-                                wayPoints.get(currentDest-1).setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN));
-                                wayPoints.get(currentDest-1).setAlpha(0.5f);
-                            }
                         }
+
                         if (previousRaftPos == null) previousRaftPos = raftPos;
                         // Animate camera on position
                         if (focusOnPosition) animateNavMode();

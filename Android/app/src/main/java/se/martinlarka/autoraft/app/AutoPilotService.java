@@ -145,23 +145,30 @@ public class AutoPilotService extends Service implements
         }
     }
 
-    private int getCurrentDest() { // FIXME Better!!!
-        LatLng raftLatLng = new LatLng(raftLocation.getLatitude(), raftLocation.getLongitude());
-        float minDistance = -1;
-        int iMin = currentDest;
-        for (int i=iMin; i < wayPoints.size(); i++) {
-            float dist = distanceBetween(raftLatLng, wayPoints.get(i));
-            if ( dist < minDistance || minDistance == -1 ) {
-                Location tempLocation = new Location(LocationManager.PASSIVE_PROVIDER);
-                tempLocation.setLatitude(wayPoints.get(i).latitude);
-                tempLocation.setLongitude(wayPoints.get(i).longitude);
-                if ( Math.abs(angleFromHeading(tempLocation)) < AutoPilotService.SEARCH_WIDTH ) {
-                    minDistance = dist;
-                    iMin = i;
-                }
+    private int getCurrentDest() {
+        if ( wayPoints.size() == 0 )
+            return 0;
+
+        Location tempLocation = new Location(LocationManager.PASSIVE_PROVIDER);
+        tempLocation.setLatitude(wayPoints.get(currentDest).latitude);
+        tempLocation.setLongitude(wayPoints.get(currentDest).longitude);
+
+        // If destination gets outside of search width
+        if (Math.abs(angleFromHeading(tempLocation)) > AutoPilotService.SEARCH_WIDTH) {
+
+            // Current dest is first dest. return next dest
+            if (currentDest == 0) return 1;
+            // Current dest is last dest. return next dest
+            if (currentDest == wayPoints.size() -1) return wayPoints.size() - 2;
+
+            // If angle to heading after destination is smaller
+            if ( Math.abs(angleFromHeading(new LatLng(wayPoints.get(currentDest - 1).latitude, wayPoints.get(currentDest - 1).longitude))) > Math.abs(angleFromHeading(new LatLng(wayPoints.get(currentDest + 1).latitude, wayPoints.get(currentDest + 1).longitude))) ) {
+                return currentDest + 1;
+            } else {
+                return currentDest - 1;
             }
         }
-        return iMin;
+        return currentDest;
     }
 
     private void setupLocationClient() {
