@@ -46,10 +46,6 @@ public class AutoPilotService extends Service implements
     */
     boolean mUpdatesRequested = false;
     private Location raftLocation;
-    private Location previousRaftLocation;
-    private Location headingLocation;
-    private LatLng headingLatLng;
-    private float raftAzimuth = 0;
     private ArrayList<LatLng> wayPoints = new ArrayList<LatLng>();
     private ArrayList<LatLng> raftTail = new ArrayList<LatLng>();
     private int currentDest = 0;
@@ -103,22 +99,11 @@ public class AutoPilotService extends Service implements
 
     @Override
     public void onLocationChanged(Location location) {
-
-        previousRaftLocation = raftLocation;
         raftLocation = location;
-
-        // Lowpass filter
-        if ( previousRaftLocation != null ) raftAzimuth = previousRaftLocation.bearingTo(raftLocation);
-
-        headingLocation = new Location(LocationManager.PASSIVE_PROVIDER);
-        headingLatLng = newPosition(location.getLatitude(), location.getLongitude(), raftAzimuth, 0.1);
-        headingLocation.setLatitude(headingLatLng.latitude);
-        headingLocation.setLongitude(headingLatLng.longitude);
 
         // Send long, lat heading m.m to activity.
         Message msg = Message.obtain(null, AutoRaft.MESSAGE_LOCATION_CHANGED);
         Bundle bundle = new Bundle();
-        bundle.putFloat(AutoRaft.AZIMUTH, raftAzimuth);
         bundle.putFloat(AutoRaft.BEARING, raftLocation.getBearing());
         bundle.putDouble(AutoRaft.LONG, location.getLongitude());
         bundle.putDouble(AutoRaft.LAT, location.getLatitude());
@@ -289,14 +274,14 @@ public class AutoPilotService extends Service implements
     }
 
     private float angleFromHeading(Location destinaionLocation) {
-        return raftLocation.bearingTo(destinaionLocation) - raftAzimuth; // ???
+        return raftLocation.bearingTo(destinaionLocation) - raftLocation.getBearing(); // ???
     }
 
     private float angleFromHeading(LatLng destinaionLocation) {
         Location destLocation = new Location(LocationManager.PASSIVE_PROVIDER);
         destLocation.setLatitude(destinaionLocation.latitude);
         destLocation.setLongitude(destinaionLocation.longitude);
-        return raftLocation.bearingTo(destLocation) - raftAzimuth;
+        return raftLocation.bearingTo(destLocation) - raftLocation.getBearing();
     }
 
     private float bearingToDestination(int dest) {

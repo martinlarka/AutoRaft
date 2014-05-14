@@ -57,7 +57,6 @@ public class AutoRaft extends Activity {
     public static final String WAYPOINTBUNDLE = "WAYPOINTBUNDLE";
     public static final String BEARING_TO_DEST = "BEARINGTODEST";
     public static final String ANGLE_TO_DEST = "ANGLETODEST";
-    public static final String AZIMUTH = "AZIMUTH";
     public static final String SERIALMESSENGER = "SERIALMESSENGER";
     public static final String GPSMESSENGER = "GPSMESSENGER";
 
@@ -274,11 +273,9 @@ public class AutoRaft extends Activity {
                     raftPosLat = msg.getData().getDouble(AutoRaft.LAT);
                     raftPos = new LatLng(raftPosLat, raftPosLong);
 
+                    currentDest = msg.getData().getInt(AutoRaft.CURRENT_DEST);
                     bearingToDest = msg.getData().getFloat(AutoRaft.BEARING_TO_DEST);
                     angleToDest = msg.getData().getFloat(AutoRaft.ANGLE_TO_DEST);
-
-                    // Mark current waypoint
-                    currentDest = msg.getData().getInt(AutoRaft.CURRENT_DEST);
 
                     if (!mapLocked) {
                         if (!wayPoints.isEmpty()) {
