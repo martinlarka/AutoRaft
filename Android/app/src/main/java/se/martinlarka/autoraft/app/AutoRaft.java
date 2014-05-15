@@ -37,7 +37,7 @@ public class AutoRaft extends Activity {
     // Intent request codes
     private static final int REQUEST_CONNECT_DEVICE = 1;
     private static final int REQUEST_ENABLE_BT = 2;
-    private static final int REQUEST_WAYPOINT = 3;
+    public static final int REQUEST_WAYPOINT = 3;
 
     // Message types sent from the BluetoothReadService Handler
     public static final int MESSAGE_STATE_CHANGE = 1;
@@ -61,6 +61,7 @@ public class AutoRaft extends Activity {
     public static final String SERIALMESSENGER = "SERIALMESSENGER";
     public static final String GPSMESSENGER = "GPSMESSENGER";
     public static final String AUTOPILOTON = "AUTOPILOTON";
+    public static final String EXTRA_ROUTE_NUMBER = "ROUTENUMBER";
 
     private static TextView mTitle;
     private static TextView headingSeekBarValue;
@@ -197,6 +198,8 @@ public class AutoRaft extends Activity {
                 return true;
             case R.id.waypoint_list:
                 Intent waypointListIntent = new Intent(this, WaypointListActivity.class);
+                Bundle bundle = new Bundle();
+                bundle.putParcelableArrayList(AutoRaft.WAYPOINTLIST, getArrayList(wayPoints));
                 startActivityForResult(waypointListIntent, REQUEST_WAYPOINT);
                 return true;
         }
@@ -397,6 +400,7 @@ public class AutoRaft extends Activity {
 
             case REQUEST_WAYPOINT:
                 // Get waypointlist from waypoint list activity
+                data.getIntExtra(EXTRA_ROUTE_NUMBER, -1); // TODO Catch -1 if noting is gotten from Extra.
                 break;
         }
     }

@@ -39,5 +39,6 @@
     <string name="play_services_available">Google Play services is available</string>
     <string name="title_activity_waypoint_list">Waypoint list</string>
     <string name="waypoint_list">Waypoint list</string>
+    <string name="current_route">Current route</string>
 
 </resources>
