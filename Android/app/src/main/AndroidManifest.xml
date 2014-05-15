@@ -25,10 +25,11 @@
         android:theme="@style/AppTheme" >
         <activity
             android:name="se.martinlarka.autoraft.app.AutoRaft"
-            android:screenOrientation="portrait"
-            android:label="@string/app_name" >
+            android:label="@string/app_name"
+            android:screenOrientation="portrait" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
@@ -52,6 +53,11 @@
             android:enabled="true"
             android:exported="true" >
         </service>
+
+        <activity
+            android:name="se.martinlarka.autoraft.app.WaypointListActivity"
+            android:label="@string/title_activity_waypoint_list" >
+        </activity>
     </application>
 
 </manifest>

@@ -37,6 +37,7 @@ public class AutoRaft extends Activity {
     // Intent request codes
     private static final int REQUEST_CONNECT_DEVICE = 1;
     private static final int REQUEST_ENABLE_BT = 2;
+    private static final int REQUEST_WAYPOINT = 3;
 
     // Message types sent from the BluetoothReadService Handler
     public static final int MESSAGE_STATE_CHANGE = 1;
@@ -79,6 +80,7 @@ public class AutoRaft extends Activity {
 
     private MenuItem mMenuItemConnect;
     private MenuItem mMenuItemAutoPilot;
+    private MenuItem mMenuItemWaypointList;
 
     // Google Map
     private GoogleMap googleMap;
@@ -162,9 +164,10 @@ public class AutoRaft extends Activity {
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.auto_raft, menu);
+        getMenuInflater().inflate(R.menu.auto_raft, menu); // FIXME Might be in other order
         mMenuItemConnect = menu.getItem(0);
         mMenuItemAutoPilot = menu.getItem(1);
+        mMenuItemWaypointList = menu.getItem(2);
         return true;
     }
     @Override
@@ -191,6 +194,10 @@ public class AutoRaft extends Activity {
                     mMenuItemAutoPilot.setTitle(R.string.stop_auto_pilot);
                 }
                 sendAutoPilotOn(autoPilotOn);
+                return true;
+            case R.id.waypoint_list:
+                Intent waypointListIntent = new Intent(this, WaypointListActivity.class);
+                startActivityForResult(waypointListIntent, REQUEST_WAYPOINT);
                 return true;
         }
         return false;
@@ -386,6 +393,11 @@ public class AutoRaft extends Activity {
                 if (resultCode != Activity.RESULT_OK) {
                     finishDialogNoBluetooth();
                 }
+                break;
+
+            case REQUEST_WAYPOINT:
+                // Get waypointlist from waypoint list activity
+                break;
         }
     }
 

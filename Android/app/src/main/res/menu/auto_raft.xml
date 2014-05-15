@@ -2,11 +2,13 @@
 
     <item
         android:id="@+id/auto_pilot"
-        android:orderInCategory="100"
-        android:showAsAction="never"
         android:title="@string/start_auto_pilot"/>
+
+    <item
+        android:id="@+id/waypoint_list"
+        android:title="@string/waypoint_list"/>
    
-        <item android:id="@+id/connect"
+    <item android:id="@+id/connect"
           android:icon="@android:drawable/ic_menu_search"
           android:title="@string/connect" />
     
