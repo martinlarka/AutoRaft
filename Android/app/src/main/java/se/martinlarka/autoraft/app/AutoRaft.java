@@ -61,7 +61,6 @@ public class AutoRaft extends Activity {
     public static final String GPSMESSENGER = "GPSMESSENGER";
     public static final String AUTOPILOTON = "AUTOPILOTON";
 
-    private static TextView mTitle;
     private static TextView headingSeekBarValue;
     private static TextView textview1;
     private static TextView textview2;
@@ -126,8 +125,7 @@ public class AutoRaft extends Activity {
         setContentView(R.layout.activity_auto_raft);
 
         // Set up the custom title
-        mTitle = (TextView) findViewById(R.id.device);
-        mTitle.setText(R.string.title_not_connected);
+        setTitle(R.string.title_not_connected);
 
         headingSeekBarValue = (TextView) findViewById(R.id.seek_bar_value);
         textview1 = (TextView) findViewById(R.id.textview1);
@@ -218,12 +216,11 @@ public class AutoRaft extends Activity {
                                 mMenuItemConnect.setIcon(android.R.drawable.ic_menu_close_clear_cancel);
                                 mMenuItemConnect.setTitle(R.string.disconnect);
                             }
-                            mTitle.setText( R.string.title_connected_to );
-                            mTitle.append(" " + mConnectedDeviceName);
+                            setTitle(R.string.title_connected_to + " " + mConnectedDeviceName);
                             break;
 
                         case BluetoothSerialService.STATE_CONNECTING:
-                            mTitle.setText(R.string.title_connecting);
+                            setTitle(R.string.title_connecting);
                             break;
 
                         case BluetoothSerialService.STATE_LISTEN:
@@ -232,7 +229,7 @@ public class AutoRaft extends Activity {
                                 mMenuItemConnect.setIcon(android.R.drawable.ic_menu_search);
                                 mMenuItemConnect.setTitle(R.string.connect);
                             }
-                            mTitle.setText(R.string.title_not_connected);
+                            setTitle(R.string.title_not_connected);
                             break;
                     }
                     break;
@@ -455,9 +452,12 @@ public class AutoRaft extends Activity {
                         // Move Polylines connected to marker
                         if (i != wayPoints.size() - 1) { // If marker is not last waypoint
                             wayPointLines.get(i).remove();
+                            wayPointLines.remove(i);
                             wayPointLines.add(i, googleMap.addPolyline(new PolylineOptions().add(wayPoints.get(i).getPosition(), wayPoints.get(i + 1).getPosition()).color(Color.GREEN)));
-                        } else if (i != 0) { // If marker is not first waypoint
+                        }
+                        if (i != 0) { // If marker is not first waypoint
                             wayPointLines.get(i - 1).remove();
+                            wayPointLines.remove(i - 1);
                             wayPointLines.add(i - 1, googleMap.addPolyline(new PolylineOptions().add(wayPoints.get(i).getPosition(), wayPoints.get(i - 1).getPosition()).color(Color.GREEN)));
                         }
                     }
@@ -465,8 +465,34 @@ public class AutoRaft extends Activity {
                     @Override
                     public void onMarkerDragEnd(Marker marker) {
                         // If marker is dropped closer than 10m remove marker
-                        if (distanceBetween(marker.getPosition(), wayPoints.get(i-1).getPosition()) < 10) wayPoints.remove(i);
-                        else if (distanceBetween(marker.getPosition(), wayPoints.get(i+1).getPosition()) < 10) wayPoints.remove(i);
+                        if (i == 0 && wayPoints.size() > 1) { // If marker is first waypoint
+                            if (distanceBetween(marker.getPosition(), wayPoints.get(i+1).getPosition()) < 20) {
+                                wayPoints.get(i+1).remove();
+                                wayPoints.remove(i+1);
+                                wayPointLines.get(i).remove();
+                                wayPointLines.remove(i);
+                            }
+                        }
+                        else if (i == wayPoints.size() - 1 && wayPoints.size() > 1) { // If marker is last waypoint
+                            if (distanceBetween(marker.getPosition(), wayPoints.get(i-1).getPosition()) < 20) {
+                                wayPoints.get(i-1).remove();
+                                wayPoints.remove(i-1);
+                                wayPointLines.get(i-1).remove();
+                                wayPointLines.remove(i-1);
+                            }
+                        }
+                        else if (wayPoints.size() == 1) {
+                            // If only one waypoint, just move marker
+                        }
+                        else if (distanceBetween(marker.getPosition(), wayPoints.get(i-1).getPosition()) < 20 || distanceBetween(marker.getPosition(), wayPoints.get(i+1).getPosition()) < 20) {
+                            wayPoints.get(i).remove();
+                            wayPoints.remove(i);
+                            wayPointLines.get(i-1).remove();
+                            wayPointLines.remove(i-1);
+                        }
+                        if (currentDest >= wayPoints.size()) {
+                            currentDest = wayPoints.size()-1;
+                        }
                         sendWaypointList();
                         mapLocked = false;
                     }
@@ -479,6 +505,7 @@ public class AutoRaft extends Activity {
         Intent intent = new Intent(getBaseContext(), AutoPilotService.class);
         Bundle bundle = new Bundle();
         bundle.putParcelableArrayList(AutoRaft.WAYPOINTLIST, getArrayList(wayPoints));
+        bundle.putInt(AutoRaft.CURRENT_DEST, currentDest);
         intent.putExtra(AutoRaft.WAYPOINTBUNDLE, bundle);
         startService(intent);
     }
@@ -503,7 +530,7 @@ public class AutoRaft extends Activity {
 
         int meterConversion = 1609;
 
-        return new Float(distance * meterConversion).floatValue();
+        return new Float(distance * meterConversion);
     }
 
     private ArrayList<LatLng> getArrayList(ArrayList<Marker> markerList) {

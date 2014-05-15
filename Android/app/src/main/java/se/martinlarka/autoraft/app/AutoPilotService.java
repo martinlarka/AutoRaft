@@ -71,8 +71,10 @@ public class AutoPilotService extends Service implements
             Toast.makeText(this, R.string.auto_pilot_started, Toast.LENGTH_LONG).show();
         } else {
             Bundle bundle = intent.getParcelableExtra(AutoRaft.WAYPOINTBUNDLE);
-            if (bundle != null)
+            if (bundle != null) {
                 wayPoints = bundle.getParcelableArrayList(AutoRaft.WAYPOINTLIST);
+                currentDest = bundle.getInt(AutoRaft.CURRENT_DEST);
+            }
             else {
                 bundle = intent.getParcelableExtra(AutoRaft.AUTOPILOTON);
                 if (bundle != null)
