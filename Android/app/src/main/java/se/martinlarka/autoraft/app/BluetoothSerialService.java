@@ -53,8 +53,7 @@ public class BluetoothSerialService {
     private ConnectThread mConnectThread;
     private ConnectedThread mConnectedThread;
     private int mState;
-    private SeekBar heading;
-    
+
     private boolean mAllowInsecureConnections;
     
     private Context mContext;
@@ -70,13 +69,12 @@ public class BluetoothSerialService {
      * @param context  The UI Activity Context
      * @param handler  A Handler to send messages back to the UI Activity
      */
-    public BluetoothSerialService(Context context, Handler handler, SeekBar headingSeekBar) {
+    public BluetoothSerialService(Context context, Handler handler) {
         mAdapter = BluetoothAdapter.getDefaultAdapter();
         mState = STATE_NONE;
         mHandler = handler;
         mContext = context;
         mAllowInsecureConnections = true;
-        heading = headingSeekBar; // TODO Send Autoraft instead??
     }
 
     /**
@@ -171,15 +169,7 @@ public class BluetoothSerialService {
         mHandler.sendMessage(msg);
 
         // Start updating timer
-        Timer updateTimer = new Timer();
-        updateTimer.scheduleAtFixedRate(new TimerTask() {
-	    
-	    @Override
-	    public void run() {
-		String tempStr = Integer.toString(heading.getProgress()) + "\n";
-		write(tempStr.getBytes());
-	    }
-	}, 100, 100);
+
         
         setState(STATE_CONNECTED);
     }
@@ -210,6 +200,23 @@ public class BluetoothSerialService {
      * @see ConnectedThread#write(byte[])
      */
     public void write(byte[] out) {
+        // Create temporary object
+        ConnectedThread r;
+        // Synchronize a copy of the ConnectedThread
+        synchronized (this) {
+            if (mState != STATE_CONNECTED) return;
+            r = mConnectedThread;
+        }
+        // Perform the write unsynchronized
+        r.write(out);
+    }
+
+    /**
+     * Write to the ConnectedThread in an unsynchronized manner
+     * @param out The bytes to write
+     * @see ConnectedThread#write(byte[])
+     */
+    public void write(int out) {
         // Create temporary object
         ConnectedThread r;
         // Synchronize a copy of the ConnectedThread
@@ -380,6 +387,7 @@ public class BluetoothSerialService {
             try {
                 mmOutStream.write(buffer);
 
+
                 // Share the sent message back to the UI Activity
                 mHandler.obtainMessage(AutoRaft.MESSAGE_WRITE, buffer.length, -1, buffer)
                         .sendToTarget();
@@ -387,7 +395,20 @@ public class BluetoothSerialService {
                 Log.e(TAG, "Exception during write", e);
             }
         }
-        
+
+        /**
+         * Write to the connected OutStream.
+         * @param oneByte The bytes to write
+         */
+        public void write(int oneByte) {
+            try {
+                mmOutStream.write(oneByte);
+
+            } catch (IOException e) {
+                Log.e(TAG, "Exception during write", e);
+            }
+        }
+
         public void cancel() {
             try {
                 mmSocket.close();
@@ -403,6 +424,24 @@ public class BluetoothSerialService {
     
     public boolean getAllowInsecureConnections() {
     	return mAllowInsecureConnections;
+    }
+
+    private final Handler mAutoPilotHandler = new Handler() {
+        @Override
+        public void handleMessage(Message msg) {
+            if (msg.what == AutoRaft.MESSAGE_LOCATION_CHANGED) {
+                if (mState == STATE_CONNECTED) {
+                    float value = msg.getData().getFloat(AutoRaft.ANGLE_TO_DEST); // Angle to dest goes from -180(port side) to 180(starboard)
+                    if (value < -60) write(0);
+                    else if (value > 60)write(255);
+                    else write(Math.round(2*value + 255/2)); // Maps angles between -60 and 60 to a one byte value
+                }
+            }
+        }
+    };
+
+    public Handler getAutoPilotHandler() {
+        return mAutoPilotHandler;
     }
 
 }
