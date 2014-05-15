@@ -11,15 +11,9 @@
         android:layout_height="wrap_content">
 
         <EditText android:id="@+id/current_route"
-            android:text="@string/current_route"
+            android:hint="@string/current_route"
+            android:singleLine="true"
             android:layout_alignParentLeft="true"
-            android:layout_alignParentTop="true"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
-
-        <Button android:id="@+id/remove_route_button"
-            android:text="Remove!"
-            android:layout_alignParentRight="true"
             android:layout_alignParentTop="true"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content" />

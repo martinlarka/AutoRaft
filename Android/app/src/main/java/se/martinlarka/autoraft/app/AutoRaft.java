@@ -200,6 +200,7 @@ public class AutoRaft extends Activity {
                 Intent waypointListIntent = new Intent(this, WaypointListActivity.class);
                 Bundle bundle = new Bundle();
                 bundle.putParcelableArrayList(AutoRaft.WAYPOINTLIST, getArrayList(wayPoints));
+                waypointListIntent.putExtra(WAYPOINTLIST, bundle);
                 startActivityForResult(waypointListIntent, REQUEST_WAYPOINT);
                 return true;
         }
@@ -400,7 +401,7 @@ public class AutoRaft extends Activity {
 
             case REQUEST_WAYPOINT:
                 // Get waypointlist from waypoint list activity
-                data.getIntExtra(EXTRA_ROUTE_NUMBER, -1); // TODO Catch -1 if noting is gotten from Extra.
+//                data.getIntExtra(EXTRA_ROUTE_NUMBER, -1); // TODO Catch -1 if noting is gotten from Extra.
                 break;
         }
     }

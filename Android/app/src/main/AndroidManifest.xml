@@ -56,6 +56,7 @@
 
         <activity
             android:name="se.martinlarka.autoraft.app.WaypointListActivity"
+            android:windowSoftInputMode="stateHidden"
             android:label="@string/title_activity_waypoint_list" >
         </activity>
     </application>
