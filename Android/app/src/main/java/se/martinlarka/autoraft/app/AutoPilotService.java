@@ -46,6 +46,7 @@ public class AutoPilotService extends Service implements
     */
     boolean mUpdatesRequested = false;
     private Location raftLocation;
+    private Location previousRaftLocation = null;
     private ArrayList<LatLng> wayPoints = new ArrayList<LatLng>();
     private ArrayList<LatLng> raftTail = new ArrayList<LatLng>();
     private int currentDest = 0;
@@ -112,7 +113,7 @@ public class AutoPilotService extends Service implements
         // Send long, lat heading m.m to activity.
         Message msg = Message.obtain(null, AutoRaft.MESSAGE_LOCATION_CHANGED);
         Bundle bundle = new Bundle();
-        bundle.putFloat(AutoRaft.BEARING, raftLocation.getBearing());
+        bundle.putFloat(AutoRaft.BEARING, getRaftBearing());
         bundle.putDouble(AutoRaft.LONG, location.getLongitude());
         bundle.putDouble(AutoRaft.LAT, location.getLatitude());
         bundle.putFloat(AutoRaft.SPEED, location.getSpeed());
@@ -120,6 +121,9 @@ public class AutoPilotService extends Service implements
         // Get destination
         currentDest = getCurrentDest();
         bundle.putInt(AutoRaft.CURRENT_DEST, currentDest);
+        if (previousRaftLocation != null && raftLocation.distanceTo(previousRaftLocation) > 10) {
+            previousRaftLocation = raftLocation;
+        }
 
         // Calculate new direction
         if (wayPoints.size() > 0) {
@@ -137,6 +141,18 @@ public class AutoPilotService extends Service implements
         } catch (RemoteException e) {
             Log.w(getClass().getName(), "Exception sending message");
         }
+    }
+
+    private float getRaftBearing() {
+        float raftBearing = raftLocation.getBearing();
+        if ( raftBearing < 0.01 ) {
+            // Compute bearing from last pos
+
+        } else if (raftBearing > 180) {
+            // Remapp bearing to -180 to 180
+            return raftBearing - 360;
+        }
+        return raftBearing;
     }
 
     private void sendAngleToSerial(float v) {

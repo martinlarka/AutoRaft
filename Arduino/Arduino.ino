@@ -14,6 +14,7 @@
 
 int bluetoothTx = 2;  // TX-O pin of bluetooth mate, Arduino D2
 int bluetoothRx = 3;  // RX-I pin of bluetooth mate, Arduino D3
+int lastHeading = 125;
 
 SoftwareSerial bluetooth(bluetoothTx, bluetoothRx);
 Servo myservo;  // create servo object to control a servo 
@@ -37,12 +38,12 @@ void setup()
 
 void loop()
 {
-  if(bluetooth.available())  // If the bluetooth sent any characters
-  {
+  if(bluetooth.available()) { // If the bluetooth sent any characters
     // Send any characters the bluetooth prints to the serial monitor
     int temp = bluetooth.read();
-    myservo.write(map(temp, 0 ,100 , 20, 159));
+    myservo.write(map(temp, 0 ,255 , 20, 159));
     Serial.println(temp);
   }
+
 }
 
