@@ -125,7 +125,7 @@ public class AutoRaft extends Activity {
         setContentView(R.layout.activity_auto_raft);
 
         // Set up the custom title
-        setTitle(R.string.app_name + " - " + R.string.title_not_connected);
+        setTitle(getString(R.string.app_name) + " - " + getString(R.string.title_not_connected));
 
         headingSeekBarValue = (TextView) findViewById(R.id.seek_bar_value);
         textview1 = (TextView) findViewById(R.id.textview1);
@@ -216,11 +216,11 @@ public class AutoRaft extends Activity {
                                 mMenuItemConnect.setIcon(android.R.drawable.ic_menu_close_clear_cancel);
                                 mMenuItemConnect.setTitle(R.string.disconnect);
                             }
-                            setTitle(R.string.app_name + " - " + R.string.title_connected_to + " " + mConnectedDeviceName);
+                            setTitle(getString(R.string.app_name) + " - " + getString(R.string.title_connected_to) + " " + mConnectedDeviceName);
                             break;
 
                         case BluetoothSerialService.STATE_CONNECTING:
-                            setTitle(R.string.app_name + " - " + R.string.title_connecting);
+                            setTitle(getString(R.string.app_name) + " - " + getString(R.string.title_connecting));
                             break;
 
                         case BluetoothSerialService.STATE_LISTEN:
@@ -229,7 +229,7 @@ public class AutoRaft extends Activity {
                                 mMenuItemConnect.setIcon(android.R.drawable.ic_menu_search);
                                 mMenuItemConnect.setTitle(R.string.connect);
                             }
-                            setTitle(R.string.app_name + " - " + R.string.title_not_connected);
+                            setTitle(getString(R.string.app_name) + " - " + getString(R.string.title_not_connected));
                             break;
                     }
                     break;

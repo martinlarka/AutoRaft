@@ -144,15 +144,14 @@ public class AutoPilotService extends Service implements
     }
 
     private float getRaftBearing() {
-        float raftBearing = raftLocation.getBearing();
-        if ( raftBearing < 0.01 ) {
-            // Compute bearing from last pos
-
-        } else if (raftBearing > 180) {
-            // Remapp bearing to -180 to 180
-            return raftBearing - 360;
+        if (previousRaftLocation == null) {
+            float bearing = raftLocation.getBearing();
+            if (bearing > 180f) {
+                return bearing - 360f;
+            }
+            return bearing;
         }
-        return raftBearing;
+        return previousRaftLocation.bearingTo(raftLocation);
     }
 
     private void sendAngleToSerial(float v) {
