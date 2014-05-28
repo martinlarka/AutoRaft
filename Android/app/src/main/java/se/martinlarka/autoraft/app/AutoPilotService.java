@@ -32,7 +32,6 @@ public class AutoPilotService extends Service implements
     public static final float SEARCH_WIDTH = 60;
     private Messenger gpsMessenger;
     private Messenger serialMessenger;
-    private boolean isNavigating = false;
 
     // A request to connect to Location Services
     private LocationRequest mLocationRequest;
