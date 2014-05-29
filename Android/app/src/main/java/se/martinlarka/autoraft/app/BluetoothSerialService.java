@@ -168,9 +168,6 @@ public class BluetoothSerialService {
         msg.setData(bundle);
         mHandler.sendMessage(msg);
 
-        // Start updating timer
-
-        
         setState(STATE_CONNECTED);
     }
 
@@ -226,6 +223,17 @@ public class BluetoothSerialService {
         }
         // Perform the write unsynchronized
         r.write(out);
+    }
+
+    public int read() {
+        // Create temporary object
+        ConnectedThread r;
+        // Synchronize a copy of the ConnectedThread
+        synchronized (this) {
+            if (mState != STATE_CONNECTED) return 0;
+            r = mConnectedThread;
+        }
+        return r.read();
     }
     
     /**
@@ -407,6 +415,16 @@ public class BluetoothSerialService {
             } catch (IOException e) {
                 Log.e(TAG, "Exception during write", e);
             }
+        }
+
+        public int read() {
+            int res = 0;
+            try {
+                res = mmInStream.read();
+            } catch (IOException e) {
+                Log.e(TAG, "Exeption during read", e);
+            }
+            return res;
         }
 
         public void cancel() {
