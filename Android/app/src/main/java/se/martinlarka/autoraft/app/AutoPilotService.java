@@ -307,7 +307,7 @@ public class AutoPilotService extends Service implements
         Location destLocation = new Location(LocationManager.PASSIVE_PROVIDER);
         destLocation.setLatitude(destinaionLocation.latitude);
         destLocation.setLongitude(destinaionLocation.longitude);
-        return raftLocation.bearingTo(destLocation) - raftLocation.getBearing();
+        return raftLocation.bearingTo(destLocation) - getRaftBearing();
     }
 
     private float bearingToDestination(int dest) {
