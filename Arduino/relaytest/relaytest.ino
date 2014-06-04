@@ -9,21 +9,41 @@ void setup() {
 }
 
 void loop() {
- delay(500);
- if (stearState == LOW) {
+  deactivateStearing();
+  starBoard();
+  activateStearing();
+  delay(20000);
+  
+  deactivateStearing();
+  portSide();
+  activateStearing();
+  delay(20000);
+}
+
+void deactivateStearing() {
+  if (activateState == LOW) {
+    activateState = HIGH;
+    digitalWrite(activateRelay, activateState); 
+  }
+}
+
+void activateStearing() {
+  if (activateState == HIGH) {
+    activateState = LOW;
+    digitalWrite(activateRelay, activateState); 
+  }
+}
+
+void starBoard() {
+   if (stearState == LOW) {
    stearState = HIGH;
  }
- else {
-   stearState = LOW;   
+ digitalWrite(stearRelay, stearState);
+}
+
+void portSide() {
+   if (stearState == HIGH) {
+   stearState = LOW;
  }
  digitalWrite(stearRelay, stearState);
- 
- delay(500);
- if (activateState == LOW) {
-   activateState = HIGH;
- }
- else {
-   activateState = LOW;   
- }
- digitalWrite(activateRelay, activateState);
 }
