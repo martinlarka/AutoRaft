@@ -165,6 +165,10 @@ public class AutoPilotService extends Service implements
         }
     }
 
+    private int getAngleFromSerial() {
+        return 0;
+    }
+
     private int getCurrentDest() {
         if ( wayPoints.size() < 2 ) return 0;
 
