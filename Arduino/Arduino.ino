@@ -16,11 +16,22 @@ int bluetoothTx = 2;  // TX-O pin of bluetooth mate, Arduino D2
 int bluetoothRx = 3;  // RX-I pin of bluetooth mate, Arduino D3
 int lastHeading = 125;
 
+int activateRelay = 4;
+int stearRelay = 7;
+int stearState = LOW;
+int activateState = LOW;
+
+int retracted = 720;
+int extracted = 314;
+
+int bearing = 0;
+
 SoftwareSerial bluetooth(bluetoothTx, bluetoothRx);
-Servo myservo;  // create servo object to control a servo 
 
 void setup()
 {
+  pinMode(activateRelay, OUTPUT);
+  pinMode(stearRelay, OUTPUT);
   
   Serial.begin(9600);  // Begin the serial monitor at 9600bps
 
@@ -32,18 +43,71 @@ void setup()
   bluetooth.println("U,9600,N");  // Temporarily Change the baudrate to 9600, no parity
   // 115200 can be too fast at times for NewSoftSerial to relay the data reliably
   bluetooth.begin(9600);  // Start bluetooth serial at 9600
-  
-  myservo.attach(9);  // attaches the servo on pin 9 to the servo object 
 }
 
-void loop()
-{
+void loop() {
+  int sensorValue = analogRead(A0);
+  int currentBearing = map(sensorValue, retracted, extracted, -45, 45);
+  
   if(bluetooth.available()) { // If the bluetooth sent any characters
     // Send any characters the bluetooth prints to the serial monitor
     int temp = bluetooth.read();
-    myservo.write(map(temp, 0 ,255 , 20, 159));
-    Serial.println(temp);
+    bearing = map(temp, 0 ,255 , -45, 45); 
+    stearTo(bearing, currentBearing);
   }
+  else {
+   if (bearing - currentBearing > 2) {
+    stearTo(bearing, currentBearing);
+  }
+  else {
+    deactivateStearing();
+    delay(400); 
+  }
+   Serial.print("current bearing: ");
+   Serial.println(currentBearing);
+   Serial.print("bearing: ");
+   Serial.println(bearing);
+  }
+  delay(100);
+}
 
+void deactivateStearing() {
+  if (activateState == LOW) {
+    activateState = HIGH;
+    digitalWrite(activateRelay, activateState); 
+  }
+}
+
+void activateStearing() {
+  if (activateState == HIGH) {
+    activateState = LOW;
+    digitalWrite(activateRelay, activateState); 
+  }
+}
+
+void extract() {
+   if (stearState == LOW) {
+   stearState = HIGH;
+ }
+ digitalWrite(stearRelay, stearState);
+}
+
+void retract() {
+   if (stearState == HIGH) {
+   stearState = LOW;
+ }
+ digitalWrite(stearRelay, stearState);
+}
+
+void stearTo(int bearing, int currentBearing) {
+  activateStearing();
+  if (currentBearing < bearing) {
+     extract();
+     Serial.println("extract");
+  }
+  else {
+     Serial.println("retract");
+     retract();
+  } 
 }
 
