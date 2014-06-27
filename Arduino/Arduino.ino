@@ -16,15 +16,15 @@ int bluetoothTx = 2;  // TX-O pin of bluetooth mate, Arduino D2
 int bluetoothRx = 3;  // RX-I pin of bluetooth mate, Arduino D3
 int lastHeading = 125;
 
-int activateRelay = 4;
-int stearRelay = 7;
+int activateRelay = 11;
+int stearRelay = 10;
 int stearState = LOW;
 int activateState = LOW;
 
-int retracted = 720;
-int extracted = 314;
+int retracted = 750; //1,2cm 
+int extracted = 300; //26cm
 
-int bearing = 0;
+int bearing = 0;     //12.7cm 
 
 SoftwareSerial bluetooth(bluetoothTx, bluetoothRx);
 
@@ -50,35 +50,37 @@ void loop() {
   int currentBearing = map(sensorValue, retracted, extracted, -45, 45);
   
   if(bluetooth.available()) { // If the bluetooth sent any characters
+    Serial.println("Bluetooth avavible");
     // Send any characters the bluetooth prints to the serial monitor
     int temp = bluetooth.read();
     bearing = map(temp, 0 ,255 , -45, 45); 
     stearTo(bearing, currentBearing);
   }
   else {
-   if (bearing - currentBearing > 2) {
-    stearTo(bearing, currentBearing);
-  }
-  else {
+   stearTo(bearing, currentBearing);
+   if (abs(bearing - currentBearing) < 2) {
     deactivateStearing();
+    Serial.println("Deactivating");
     delay(400); 
-  }
+   }
+   Serial.print("Sensor value: ");
+   Serial.println(sensorValue);
    Serial.print("current bearing: ");
    Serial.println(currentBearing);
    Serial.print("bearing: ");
    Serial.println(bearing);
-  }
-  delay(100);
+   }
+   delay(500);
 }
 
-void deactivateStearing() {
+void activateStearing() {
   if (activateState == LOW) {
     activateState = HIGH;
     digitalWrite(activateRelay, activateState); 
   }
 }
 
-void activateStearing() {
+void deactivateStearing() {
   if (activateState == HIGH) {
     activateState = LOW;
     digitalWrite(activateRelay, activateState); 
@@ -100,14 +102,16 @@ void retract() {
 }
 
 void stearTo(int bearing, int currentBearing) {
-  activateStearing();
-  if (currentBearing < bearing) {
-     extract();
-     Serial.println("extract");
-  }
-  else {
+  if (abs(bearing - currentBearing) > 2) {   
+    activateStearing();
+    if (currentBearing < bearing) {
+       extract();
+       Serial.println("extract");
+    }
+    else {
      Serial.println("retract");
      retract();
+    }
   } 
 }
 
