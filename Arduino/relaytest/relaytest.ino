@@ -1,5 +1,5 @@
-int activateRelay = 4;
-int stearRelay = 7;
+int activateRelay = 7;
+int stearRelay = 6;
 int stearState = LOW;
 int activateState = LOW;
 
@@ -13,43 +13,45 @@ void setup() {
 }
 
 void loop() {
-  stearTo(0);
-  Serial.println("DONE");
-  delay(20000);
+//  stearTo(0);
+//  Serial.println("DONE");
+//  delay(20000);
   
-//  deactivateStearing();
-//  extract();
-//  activateStearing();
-//  for (int i = 0; i<20; i++) {
-//    // read the input on analog pin 0:
-//    int sensorValue = analogRead(A0);
-//    // print out the value you read:
-//    Serial.println(sensorValue);
-//   delay(100); 
-//  }
-//  
-//  deactivateStearing();
-//  retract();
-//  activateStearing();
-//  for (int i = 0; i<20; i++) {
-//    // read the input on analog pin 0:
-//    int sensorValue = analogRead(A0);
-//    // print out the value you read:
-//    Serial.println(sensorValue);
-//   delay(100); 
-//  }
+  deactivateStearing();
+  extract();
+  delay(500);
+  activateStearing();
+  for (int i = 0; i<20; i++) {
+    // read the input on analog pin 0:
+    int sensorValue = analogRead(A0);
+    // print out the value you read:
+    Serial.println(sensorValue);
+   delay(300); 
+  }
+  
+  deactivateStearing();
+  retract();
+  delay(500);
+  activateStearing();
+  for (int i = 0; i<20; i++) {
+    // read the input on analog pin 0:
+    int sensorValue = analogRead(A0);
+    // print out the value you read:
+    Serial.println(sensorValue);
+   delay(300); 
+  }
 }
 
 void deactivateStearing() {
-  if (activateState == LOW) {
-    activateState = HIGH;
+  if (activateState == HIGH) {
+    activateState = LOW;
     digitalWrite(activateRelay, activateState); 
   }
 }
 
 void activateStearing() {
-  if (activateState == HIGH) {
-    activateState = LOW;
+  if (activateState == LOW) {
+    activateState = HIGH;
     digitalWrite(activateRelay, activateState); 
   }
 }

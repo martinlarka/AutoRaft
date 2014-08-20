@@ -4,5 +4,7 @@
     <dimen name="activity_horizontal_margin">16dp</dimen>
     <dimen name="activity_vertical_margin">16dp</dimen>
     <dimen name="heading_seek_bar_margin">20dp</dimen>
+    <dimen name="current_value_top_padding">24dp</dimen>
+    <dimen name="current_value_text_size">24dp</dimen>
 
 </resources>

@@ -16,13 +16,13 @@ int bluetoothTx = 2;  // TX-O pin of bluetooth mate, Arduino D2
 int bluetoothRx = 3;  // RX-I pin of bluetooth mate, Arduino D3
 int lastHeading = 125;
 
-int activateRelay = 11;
-int stearRelay = 10;
+int activateRelay = 7;
+int stearRelay = 6;
 int stearState = LOW;
 int activateState = LOW;
 
-int retracted = 750; //1,2cm 
-int extracted = 300; //26cm
+int retracted = 300; //1,2cm 
+int extracted = 750; //26cm
 
 int bearing = 0;     //12.7cm 
 
