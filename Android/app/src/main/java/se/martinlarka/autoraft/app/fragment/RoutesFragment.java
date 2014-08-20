@@ -11,11 +11,11 @@ import se.martinlarka.autoraft.app.R;
 /**
  * Created by martin on 2014-06-29.
  */
-public class WaypointsFragment extends Fragment {
+public class RoutesFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
 
-        View rootView = inflater.inflate(R.layout.fragment_waypoints, container, false);
+        View rootView = inflater.inflate(R.layout.fragment_routes, container, false);
 
         return rootView;
     }

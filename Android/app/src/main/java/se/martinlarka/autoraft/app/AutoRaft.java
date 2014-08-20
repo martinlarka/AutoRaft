@@ -88,7 +88,7 @@ public class AutoRaft extends FragmentActivity implements ActionBar.TabListener 
     private TabsPagerAdapter mAdapter;
     private ActionBar actionBar;
     // Tab titles
-    private String[] tabs = { "Waypoints", "Navigation", "Manual Input" };
+    private String[] tabs = { "Routes", "Navigation", "Manual Input" };
 
     @Override
     protected void onDestroy() {

@@ -6,7 +6,7 @@ import android.support.v4.app.FragmentPagerAdapter;
 
 import se.martinlarka.autoraft.app.fragment.ManualNavigationFragment;
 import se.martinlarka.autoraft.app.fragment.NavigationFragment;
-import se.martinlarka.autoraft.app.fragment.WaypointsFragment;
+import se.martinlarka.autoraft.app.fragment.RoutesFragment;
 
 /**
  * Created by martin on 2014-06-29.
@@ -21,7 +21,7 @@ public class TabsPagerAdapter extends FragmentPagerAdapter {
         switch (position) {
             case 0:
                 // Top Rated fragment activity
-                return new WaypointsFragment();
+                return new RoutesFragment();
             case 1:
                 // Games fragment activity
                 return new NavigationFragment();
